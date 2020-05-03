@@ -16,7 +16,7 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, out.width = "\\textwidth")
 library(tidyverse)
 library(knitr)
 ```
@@ -174,7 +174,6 @@ and Segregation indices
   * excess average local Simpson index (this measures how much higher the average local index is compared to index in the town as a whole, $(\sum_i \frac{N_i}{N}\sum_X {P_i^X}^2) - \sum_X {P^X}^2$)
   * loss of average local entropy index (this measures how much lower the average local index is compared to the index of the town as a whole, $- \frac{1}{\log \#\text{Eth}}\sum_{X\in\text{Eth}} P^X \cdot \log P^X + \frac{1}{\log \#\text{Eth}}\sum_i \frac{N_i}{N} \sum_{X\in\text{Eth}} P_i^X \cdot \log P_i^X$)
   
-  
 TODO: Decide which indicators to use for what. For Simpson we need to check which is the least 
 
 
@@ -184,13 +183,25 @@ TODO: Decide which indicators to use for what. For Simpson we need to check whic
 
 Mechanisms for segregation form sociological theories.   
 
+Spatial Assimilation Theory ->   
+Predictions: Diversity Measures should decrease over time because ethnic similarity matters less and less for individuals, this happens presumably more for high SES minorities ->   
+With the ABM we can (1) test if find less segregation in high SES in some reasonable parameter configuration to offer an alternative explanation, and/or (2) do counterfactual studies what happens when we lower the average threshold or lower the beta_ethn (the weight for ethnic similarity in the utility function), perhaps we find some counterintuitive non-linear effects that e.g. segregation need not necessarily decrease for all groups when one of these to processes happen. 
+
+SES matters also for prevents full segregation ->
+
+
+Discrimination in housing
+
+Focus of the 
+
 
 ## Descriptives and Stylized Facts
 
 Distributions of fractions of ethnicities in selected cities
 
 ```{r Descriptives}
-lsoa_ethn %>% filter(town %in% c("Bradford","Leicester","Bristol","Manchester")) %>% 
+lsoa_ethn %>% 
+  filter(town %in% c("Birmingham","Bradford","Leicester","Manchester","Bristol","Sheffield","Leeds","Bristol","Liverpool","Coventry")) %>% 
   group_by(town,Ethnicity) %>% mutate(Rank = rank(fraction)) %>% 
   ggplot(aes(Rank,fraction, color=Ethnicity)) + geom_point(size=0.2) + 
   facet_grid(Ethnicity ~ town, scales = "free_x") +
@@ -202,21 +213,25 @@ lsoa_ethn %>% filter(town %in% c("Bradford","Leicester","Bristol","Manchester"))
 Highest dissimilarity index values: 
 
 ```{r}
- towns_ethn %>% group_by() %>% 
-  arrange(desc(Dissimilarity_Index)) %>% head(10) %>% kable
+ towns_ethn %>% group_by() %>%   
+  filter(town %in% c("Birmingham","Bradford","Leicester","Manchester","Bristol","Sheffield","Leeds","Bristol","Liverpool","Coventry")) %>%
+  arrange(desc(Dissimilarity_Index)) %>% head(16) %>% kable
 ```
 
 Highest average loss entropy, average excess Simpson index values, average entropy, average Simpson index:
 
 ```{r}
- towns %>%  select(town, Avg_Loss_Entropy, Avg_Excess_Simpson, average_ses, count) %>% 
+ towns %>%  
+  filter(town %in% c("Birmingham","Bradford","Leicester","Manchester","Bristol","Sheffield","Leeds","Bristol","Liverpool","Coventry")) %>% 
+  select(town, Avg_Loss_Entropy, Avg_Excess_Simpson, average_ses, count) %>% 
   arrange(desc(Avg_Loss_Entropy)) %>% head(10) %>% kable
 ```
 
 Distribution of SES in selected towns.
 
 ```{r }
-lsoa_ses %>% filter(town %in% c("Bradford","Leicester","Bristol","Manchester")) %>% 
+lsoa_ses %>%
+  filter(town %in% c("Birmingham","Bradford","Leicester","Manchester","Bristol","Sheffield","Leeds","Bristol","Liverpool","Coventry")) %>% 
   group_by(town,SES) %>% mutate(Rank = rank(fraction)) %>% 
   ggplot(aes(Rank,fraction, color=SES)) + geom_point(size=0.2) + 
   facet_grid(SES ~ town, scales = "free_x") +
@@ -240,11 +255,11 @@ $$ U_{X,Y,\theta}(i) = \underbrace{\beta_\text{Eth} (P_i^X - \theta) + \beta_\te
 where $P_i^X$ and $P_i^Y$ are the fractions of the population with the same ethnicity and, respectively, the same socio-economic status as the agent.^[In the following we will define the fractions $P_i^X$ and $P_i^Y$ by taking into account also the population of the geographically neighboring LSOA.] Factors relevant for the decisions which are not modeled are considered in the stochastic term $\varepsilon$ which we assume to be a random number from a Gumbel distribution (also known as generalized extreme value distribution type-I)^[SOME RATIONALE FOR THIS]. The parameters $\beta_\text{Eth}$ and $\beta_\text{SES}$ specifiy the importance of ethnic similarity and similarity of socio-economic status in the neighborhood. The larger both parameters the lower the impact of the other factors represented by $\varepsilon$. 
 The agent decides to search an option when $U_{X,Y,\theta}(i) < 0$. When a selected option is in LSOA $j$, the agent relocates when $U_{X,Y,\theta}(j) > U_{X,Y,\theta}(i)$.
 
-In the particular our case of England's census data it is reasonable to treat the ethnic group OTHER differently, because these collects a large variety of all ethnicities which all have small numbers and may not as much perceive themselves to be of the same group as the other three groups WHITEB, ASIAN, and BLACK. An implementation of this difference would be to set $\beta_\text{Ethn} = 0$ when $X=$OTHER. 
+In the particular our case of England's census data it is reasonable to treat the ethnic group OTHER differently, because these collects a large variety of all ethnicities which all have small numbers and may not as much perceive themselves to be of the same group as the other three groups WHITEB, ASIAN, and BLACK. An implementation of this difference would be to set $\beta_\text{Eth} = 0$ when $X=$OTHER. 
 
 In the following, we outline the initialization of geography and demography, the shuffling of the population to be most equal, and the flow of a simulation run. The model is implemented in NetLogo. The interface is shown in Figure \@ref(fig:NetLogoInterface).
 
-```{r NetLogoInterface, fig.cap="NetLogo Interface."}
+```{r NetLogoInterface, fig.cap="NetLogo Interface.", out.width="\\textwidth"}
 include_graphics("figs/Screenshot from 2020-03-11 18-56-05.png")
 ```
 
@@ -304,7 +319,6 @@ The first focus was to find parameter settings such that the distribution of the
 The following constellation delivered a surprisingly good result:
 `free-space` = 0.05, `threshold-mean`=0.3 , `threshold-sd`=0.12, `neighbor-weight`=0.25, `beta-ethn`=8, `beta-ses`=12, and `forced-moves`=0.003. 
 
-
 ```{r, fig.cap="Birmingham Asian Empricial Data"}
 include_graphics("figs/Birmingham_Asian_Emp Screenshot from 2020-03-12 23-40-28.png")
 ```
@@ -330,7 +344,11 @@ include_graphics("figs/Southampton_Black_Sim Screenshot from 2020-03-12 22-53-00
 ```
 
 
+### ABM exploratory analysis (outline for paper)
 
+TO BE WRITTEN BY JAN ASAP!
+
+Scenario: Switch ethnic preferences off
   
 
 
