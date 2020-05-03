@@ -17,8 +17,10 @@ englandwales <- read_sf(dsn ="TownData/Lower_Layer_Super_Output_Areas_December_2
   inner_join(districts, by = c("LSOA11CD" = "lsoa11cd"))
 save(districts, long_districts, englandwales, file = "R/data")
 
-for (TOWN in c("Southampton","Leeds", "Bradford", "Leicester", "London", "Manchester", "Birmingham", 
-               "Blackburn", "Oldham","Wolverhampton","Slough","Walsall","Bristol", "Liverpool", "Leeds")) {
+for (TOWN in c("Southampton","Leeds", "Bradford", "Leicester", "London", "Manchester", "Birmingham", "Brighton and Hove", 
+               "Kingston upon Hull", "Stoke-on-Trent", "Plymouth", "Derby", "Nottingham", "Newcastle upon Tyne","Leeds", "Sheffield",
+               "Coventry", "St Albans" , "Guildford", "Cambridge", "Middlesbrough", "Sunderland", "Oxford","Luton",
+               "Blackburn", "Oldham","Wolverhampton","Slough","Walsall","Bristol", "Liverpool", "Leeds", "Reading")) {
   if (!dir.exists(paste0("shp_NetLogo/",TOWN))) englandwales %>% filter(town == TOWN) %>%
     st_write(dsn = paste0("shp_NetLogo/",TOWN), layer = TOWN, driver = "ESRI Shapefile", delete_dsn = TRUE)
 }
