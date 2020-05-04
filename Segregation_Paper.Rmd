@@ -13,6 +13,7 @@ output:
     number_sections: true 
 editor_options: 
   chunk_output_type: console
+bibliography: "references.bib"
 ---
 
 ```{r setup, include=FALSE}
@@ -394,3 +395,4 @@ Further topics to be discussed as extensions or robustness tests listed under "F
 
 
 
+# References
