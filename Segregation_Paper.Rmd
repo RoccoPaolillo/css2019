@@ -382,6 +382,7 @@ include_graphics("figs/Bradford_baseline_t2000_AverageSES.png")
 ```
 
 TODO: 
+SOME MORE WORDS THAT
 CHECK OTHER CITIES WITH THE SOME PARAMETERS. 
 
 Further topics to be discussed as extensions or robustness tests listed under "Further parameters :
