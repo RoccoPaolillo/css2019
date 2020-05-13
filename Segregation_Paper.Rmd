@@ -1,25 +1,29 @@
 ---
 title: What mechanisms drive neighborhood ethnic segregation in the UK? Lessons learned
   from Bayesian and agent-based spatial modelling
-author: 
-  - Carolina V. ZUCCOTTI
-  - Jan LORENZ
-  - Rocco PAOLILLO
-  - Alejandra RODRÍGUEZ SÁNCHEZ
-  - Selamawit SERKA
-abstract: 
-output: 
-  bookdown::pdf_document2:
-    number_sections: true 
-editor_options: 
-  chunk_output_type: console
-bibliography: "references.bib"
+author:
+- Carolina V. ZUCCOTTI
+- Jan LORENZ
+- Rocco PAOLILLO
+- Alejandra RODRÍGUEZ SÁNCHEZ
+- Selamawit SERKA
+bibliography: references.bib
+output:
+  pdf_document: default
+  bookdown::pdf_document2: default
+  word_document: default
+abstract: null
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, out.width = "\\textwidth")
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, out.width = "\\textwidth")
 library(tidyverse)
 library(knitr)
+library(magick)
+crop <- function(im, left = 0, top = 0, right = 0, bottom = 0) {
+  d <- dim(im[[1]]); w <- d[2]; h <- d[3]
+  image_crop(im, glue::glue("{w-left-right}x{h-top-bottom}+{left}+{top}"))
+}
 ```
 
 # Extended Abstract
@@ -110,9 +114,9 @@ The reasons lie in a mix of
   
 The socio-economic status (SES) is extracted from NSSEC (..SOURCE..) to the following three classes
 
-  * LOW: Classes 1 and 2
+  * LOW: Classes 5, 6, and 7
   * MID: Classes 3 and 4
-  * HIGH: Classes 5, 6, and 7
+  * HIGH: Classes 1 and 2
 
 The classification of SES excludes the class 8 ("Never worked and long-term unemployed"). 
 Further on, the cross-tabulation includes only the population between 16 and 74 (CHECK was there a reason in the data for this?). 
@@ -152,6 +156,31 @@ We define fractions of population in an analog way, where
   * $P^X = N^X/N$, $P^Y = N^Y/N$
   
 (Note: It may also turnout useful to compute fractions of Ethncities for each SES and vice versa on the LSOA or town level, e.g. $N_i^{X,Y}/N^X_i$ for SES $Y$ or $N_i^{X,Y}/N^X_i$ for ethnicity $X$. This is not covered in the logic applied above, where we assume the the fraction is always with respect to the total of the geographic unit only. )
+  
+  
+Bradford 
+
+|       |    sum|   LOW|   MID|  HIGH|
+|:------|------:|-----:|-----:|-----:|
+|WHITEB | 130168| 62098| 33066| 35004|
+|ASIAN  |  45333| 21004| 14407|  9922|
+|BLACK  |   4264|  2183|   789|  1292|
+|OTHER  |  14655|  8922|  2740|  2993|
+|sum    | 194420| 94207| 51002| 49211|
+
+|          |       all|       LOW|       MID|      HIGH|
+|:---------|---------:|---------:|---------:|---------:|
+|WHITEB    | 0.6695196| 0.6591655| 0.6483275| 0.7113044|
+|ASIAN     | 0.2331705| 0.2229558| 0.2824791| 0.2016216|
+|BLACK     | 0.0219319| 0.0231724| 0.0154700| 0.0262543|
+|OTHER     | 0.0753780| 0.0947063| 0.0537234| 0.0608197|
+
+|SES  |       all|    WHITEB|     ASIAN|     BLACK|     OTHER|
+|:----|---------:|---------:|---------:|---------:|---------:|
+|LOW  | 0.4845541| 0.4770604| 0.4633269| 0.5119606| 0.6088025|
+|MID  | 0.2623290| 0.2540256| 0.3178038| 0.1850375| 0.1869669|  
+|HIGH | 0.2531170| 0.2689140| 0.2188693| 0.3030019| 0.2042306|
+
   
 # Segregation measures
 
@@ -215,7 +244,7 @@ Highest dissimilarity index values:
 
 ```{r}
  towns_ethn %>% group_by() %>%   
-  filter(town %in% c("Birmingham","Bradford","Leicester","Manchester","Bristol","Sheffield","Leeds","Bristol","Liverpool","Coventry")) %>%
+  # filter(town %in% c("Birmingham","Bradford","Leicester","Manchester","Bristol","Sheffield","Leeds","Bristol","Liverpool","Coventry")) %>%
   arrange(desc(Dissimilarity_Index)) %>% head(16) %>% kable
 ```
 
@@ -223,9 +252,9 @@ Highest average loss entropy, average excess Simpson index values, average entro
 
 ```{r}
  towns %>%  
-  filter(town %in% c("Birmingham","Bradford","Leicester","Manchester","Bristol","Sheffield","Leeds","Bristol","Liverpool","Coventry")) %>% 
+  # filter(town %in% c("Birmingham","Bradford","Leicester","Manchester","Bristol","Sheffield","Leeds","Bristol","Liverpool","Coventry")) %>% 
   select(town, Avg_Loss_Entropy, Avg_Excess_Simpson, average_ses, count) %>% 
-  arrange(desc(Avg_Loss_Entropy)) %>% head(10) %>% kable
+  arrange(desc(Avg_Excess_Simpson)) %>% head(10) %>% kable
 ```
 
 Distribution of SES in selected towns.
@@ -245,154 +274,115 @@ lsoa_ses %>%
 
 ## Agent-based dynamical model
 
-We built an agent-based model of residential relocation within a town.
+We built an agent-based model of residential relocation within a town were we specify agents and space based on its geography and demographic data. In the model, each *agent* is demographically specified by *ethnicity* ("WHITEB", "ASIAN", "BLACK", or "OTHER"), *socio-economic status* ("LOW", "MID", or "HIGH"), and an individual *threshold* value which quantifies the minimal fractions of similar neighbors the agents needs to perceive positive utility from their residence. The *neighborhood* of the agent is the district of residence and to a lesser degree the neighboring districts. The *districts* in the model are the LSOA's of the town in their geographic location and districts are neighboring when they share a border.
 
-The agents and space in the model are specified based on the demographic and geographic data of one town. Each agent in the model is specified by ethnicity, socio-economic status, and an individual threshold $\theta$ value between zero and one. Each agent is located in one of the LSOA of the town on the geographic map. The threshold is the essential individual parameter for the computation of the utility an individual obtains from the residence in a particular LSOA.
+An agent's *decision to relocate* is modeled as a two-step process. First, the agent assesses the utility of their current residence. When utility is positive the agent stays at the current residence and the second step is skipped. When utility is negative the agent selects a potential new residence in the town randomly from all available places. Second, the agent assesses the utility of this option. The agent moves to the district of the new residence, when the utility is larger than the utility at the current residence. That way a free residence is created in the district the  agent is leaving. With the two-step process we unite two traditions of relocation models. In Schelling's original model (REF) agents only make a decision two leave and move to a random new place without checking if this improves their utility. In the models of XXX (REFS), agents always compare their current residence with other options even if their current utility is very high.^[In the model, we provide further parameters to switch the two steps of the relocation decision on and off. When the first step is off, agents always search for an alternative location. When the second step is off agents always move to the selected alternative without checking if it has higher utility. These can be used for robustness tests.]
 
-We model the relocation of an agent as a two-step process. First, the agent assesses the utility of their current residence. Further on, we assume that the agent may be forced to leave. In this case, or when the utility assessed as too low, the agent searches for another option in the town. Otherwise, no relocation happens. Second, if the agent has decided or is forced to search an option, the agent assesses if this option is better than the current place of residence. If this is the case, or in the case of a forced move, the agent move to the LSOA where the option is located.
-
-The utility an agent with ethnicity $X$, socio-economic status $Y$, and threshold $\theta$ obtains from residence in LSOA $i$ is defined as 
+Formally, an agent with ethnicity $X$, socio-economic status $Y$, and threshold $\theta$ computes *utility* for a residence in district $i$ as 
 $$ U_{X,Y,\theta}(i) = \underbrace{\beta_\text{Eth} (P_i^X - \theta) + \beta_\text{SES} (P_i^Y - \theta)}_{\text{observable utility}} + \varepsilon$$
-where $P_i^X$ and $P_i^Y$ are the fractions of the population with the same ethnicity and, respectively, the same socio-economic status as the agent.^[In the following we will define the fractions $P_i^X$ and $P_i^Y$ by taking into account also the population of the geographically neighboring LSOA.] Factors relevant for the decisions which are not modeled are considered in the stochastic term $\varepsilon$ which we assume to be a random number from a Gumbel distribution (also known as generalized extreme value distribution type-I)^[SOME RATIONALE FOR THIS]. The parameters $\beta_\text{Eth}$ and $\beta_\text{SES}$ specifiy the importance of ethnic similarity and similarity of socio-economic status in the neighborhood. The larger both parameters the lower the impact of the other factors represented by $\varepsilon$. 
-The agent decides to search an option when $U_{X,Y,\theta}(i) < 0$. When a selected option is in LSOA $j$, the agent relocates when $U_{X,Y,\theta}(j) > U_{X,Y,\theta}(i)$.
+where $P_i^X$ is the *fraction of the population with the same ethnicity*, $P_i^Y$ the *fraction of the population with the same socio-economic status*, and $\varepsilon$ is *unobservable utility* of the agent. The population the agent takes into account is the population in district $i$ and the population in neighboring districts to a lesser degree, weighted by the parameter *neighbor-weight*. In step one of the relocation decision, the agent decides to search when $U_{X,Y,\theta}(i) < 0$. In step two, the agent selects a districts $j$ to potentially move to. The selection is random with probabilities proportional to the number of the free residences over all districts. The agent relocates to district $j$ when $U_{X,Y,\theta}(j) > U_{X,Y,\theta}(i)$.
 
-In the particular our case of England's census data it is reasonable to treat the ethnic group OTHER differently, because these collects a large variety of all ethnicities which all have small numbers and may not as much perceive themselves to be of the same group as the other three groups WHITEB, ASIAN, and BLACK. An implementation of this difference would be to set $\beta_\text{Eth} = 0$ when $X=$OTHER. 
+Utility increases linearly with $P_i^X$ as well as with $P_i^Y$. Thus, both similarities can compensate each other. Low similarity in ethnicity can be compensated by high socio-economic similarity. The parameters $\beta_\text{Eth}$ and $\beta_\text{SES}$ specifiy the importance of ethnic and respectively socio-economic similarity. The higher the threshold $\theta$ the larger is the tendency that utility becomes negative. Individuals with a high threshold thus have a higher tendency to search an alternative residence in step one of the decision to relocate. In step two of the relocation decision, agents prefer alternatives with either more ethnic similarity or more socio-economic similarity or both. When, e.g., $\beta_\text{SES} > \beta_\text{Eth}$ a small increase in socio-economic similarity can outweigh even a slightly larger decrease in ethnic similarity. 
 
-In the following, we outline the initialization of geography and demography, the shuffling of the population to be most equal, and the flow of a simulation run. The model is implemented in NetLogo. The interface is shown in Figure \@ref(fig:NetLogoInterface).
+In our particular case, it is reasonable to treat the ethnic group OTHER differently because they represent much more diverse groups of the population than WHITEB, ASIAN, or BLACK. They will perceive themselves as similars to a much lower degree. Therefore, we set $\beta_\text{Eth} = 0$ when  $X=$ OTHER.^[The model includes an additional parameter to switch the different behavior of OTHERs on and off. When off, OTHERs are treated as a normal ethnic group.] TO DECIDE AND CHANGE: WHEN WE TREAT OTHER DIFFERENTLY IT IS MORE CONSISTENT TO ALSO COMPUTE THE SIMPSON INDEX ACCORDINGLY: THE TERM $(P_i^\text{OTHER})^2$ CAN BE OMITTED. BECAUSE WE WOULD NOT ASSUME TWO RANDOMLY SELECTED PEOPLE FROM THIS GROUP AS SIMILAR. IF WE DO THIS, THIS HAS IMPLICATIONS FOR ALL ANALYSES! EMPIRICALLY, I SEE ONLY VERY SMALL CHANGES, SO IT MAY NOT CHANGE MUCH OF THE RESULTS. 
+
+*Unobservable utility* $\varepsilon$ is a random variable as standard in discrete choice models (REF discrete choice and REF discrete choice in Schelling-type model) and analogously to an error term in regression models. Whenever utility is assessed, a random number for $\varepsilon$ is drawn from a standard Gumbel distribution.^[The standard Gumbel distribution is also known as generalized extreme value distribution type-I and has a mean of 0.577 (Euler-Masceroni constant) and a standard deviation of 1.283 ($\pi/\sqrt 6$)). Thus, when observed utility is zero in step one of the relocation decision, the probability to search is only 0.368. The probability to search is 0.5 for an observed utility of 0.367. In step two of the relocation decision, two random numbers are drawn, one for each alternative. The difference of two random variables with standard Gumbel distribution has a logistic distribution with mean zero and standard deviation 3.29 ($\pi^2/3$).] 
+The random contribution of unobserved utility has a stronger impact the lower $\beta_\text{Eth}$ and $\beta_\text{SES}$ are. 
+
+We implemented the model in NetLogo and made it freely available REF. 
+The interface is shown in Figure \@ref(fig:NetLogoInterface). 
+Clicking "Load town" in the interface section "1. Load Town from GIS Data" initializes a simulation by loading the LSOA shapes of a town using NetLogo's GIS extension. The GIS data includes population data for each district. REFER TO DESCRIPTIVES SECTION ON POPULATION DATA. Summary statistics of the whole town are shown in the output window. From the population data a set of agents is created in each district. Agents are initialized with ethnicity and socio-economic status according to population data. Further on, each agent draws the threshold $\theta$ from a Beta distribution with mean $\mu_\theta$ and standard $\sigma_\theta$. These are two global parameters of the model quantifying level and dispersion of individual thresholds. Finally, the maximal population is set for each district upon initialization.^[The maximal population is set based on the *free-space* parameter which quantifies the fraction of free places compared to the initial population. The maximal population is set once for the whole population for each district and once for each socio-economic status group. The latter allows to tie houses to agents with a specific socio-economic status which is an option that can be switched on and off at runtime.]  
+The population data can be visually explored on the central map using the switches, choosers and sliders in the section "2. Explore Local Data". Several basic, segregation specific and other measures are available. Many are for speciific ethnic or socio-economic groups or both. 
 
 ```{r NetLogoInterface, fig.cap="NetLogo Interface."}
-library(magick)
-crop <- function(im, left = 0, top = 0, right = 0, bottom = 0) {
-  d <- dim(im[[1]]); w <- d[2]; h <- d[3]
-  image_crop(im, glue::glue("{w-left-right}x{h-top-bottom}+{left}+{top}"))
-}
-"figs/Bradford_baseline_ASIAN_SchellingGIS_2 interface.png" %>%
+"figs/SchellingGIS_2 interface.png" %>%
    image_read() %>%
-   crop(right = 345)
+   crop(right = 40, bottom = 90)
+```
+
+The main purpose of the agent-based model is to study the emergence of segregation patterns in towns which are not segregated. To that end, the population can be *shuffled* (using the button in section "3. Setup Simulation") to create a counter-factual situation in which each district shows the same composition of ethnicities as the whole town. All our simulation experiments shuffle the population as part of the initialization procedure. Shuffling keeps the geography of districts, the total decomposition of the population into ethnicity and socio-economic groups, and the  The shuffling procedure takes the parameter *tie-houses-to-SES* into account.^[When tie-houses-to-SES is switched on, the districts of the shuffled town keep the distribution of socio-economic groups. When switched off, also socio-economic groups are locally distributed as in the whole town after shuffling.] As a consequence, the dissimilarity for all ethnicities and the average local Simpson Index are maximally low.
+
+Clicking "Go" in the interface section "4. Run Simulation" starts a *simulation run*. Further on, the section provides the global parameters from the utility functions $\beta_\text{Eth}$ and $\beta_\text{SES}$ which can be changed at runtime. 
+Once "Go" is clicked, the simulation runs one tick after the other. In each tick, agents are picked at random and perform the two step decision to relocate as described above. The total number of agents' decisions per ticks matches the total number of agents. Thus, a tick represents a unit time step. 
+
+The interface section "5. Outcomes Simulation vs. Empricial" shows the current distribution of the measure as selected in section 2 in comparison with the emprical distribution. Further on, time trends are shown for the Simpson Index and the Dissimilarity Index for all ethnicities as well as the fraction of agents who searched for an alternative and those who actually moved. The interface also provides further parameters for robustness tests. 
+
+## ABM Analysis
+
+Figure \@ref(fig:Empirical). Figure \@ref(fig:Towards). Figure \@ref(fig:Final). 
+
+```{r Empirical, fig.cap="Empirical Data"}
+"figs/Testing Schelling Fig 1.png" %>% 
+	image_read() %>%
+  crop(right = 35, left = 30, bottom = 570, top = 20)
+```
+
+```{r Towards, fig.cap="Towards parameters which let empirical data emerge."}
+"figs/Testing Schelling Fig 2.png" %>% 
+	image_read() %>%
+  crop(right = 35, left = 30, bottom = 0, top = 0)
+```
+
+```{r Final, fig.cap="The final parameter configuration in detail. "}
+"figs/Testing Schelling Fig 3.png" %>% 
+	image_read() %>%
+  crop(right = 0, left = 0, bottom = 60, top = 25)
 ```
 
 
-### Initialization
-
-Initialization happens by clicking "Load town". This loads the LSOA shapes (in ESRI format collected in a folder) of the selected `town` using NetLogo's GIS extension. The data includes the population data and can be visually explored using the switches, choosers and sliders in the section "2. Explore Data". Aggregated empirical data on the town level is shown in the output area in the section "1. Load Town from GIS Data". For the purpose of simulation speed all population counts can be scaled down by the factor `scale-down-pop`. 
-
-For each LSOA an agent of the breed `district` is created located at the center of the LSOA. Further on, links are created between districts representing shapes which share a border. 
-Each district object stores the counts for all twelve types of individuals (four ethnicities times three socio-economic status) in a variable. Further on, in each district a list of lists is created where each sublist represents one of the individuals in the district. Each sublist has three elements: The indication of the individual's ethnicity, the indication of the individual's SES, and a random number from a Beta-distribution drawn upon initialization representing the individual's theshold $\theta$. The Beta-distribution is parameterized by the two parameters `threshold-mean` $\mu_\theta$ and `threshold-sd` $\sigma_\theta$ (in the section "3. Setup Simulation") representing the mean and the standard deviation of the thresholds in the population. 
-Finally, for each district we set maximal numbers of individuals for each SES group. These numbers are set such that a is a fraction of `free-space` of these maximal number are not occupied initially. Thus, we assume that in each district there are certain fractions of houses, flats, or rooms suitable and affordable for each of the three SES groups. With `free-space` = 0.05, 5% of these places are initially free. 
-
-Compared to a typical model in NetLogo our implementation does not represent each individual as an agent but as an item in a list stored by a district (which is an agent in our implementation). 
-
-### Shuffling of population
-
-On clicking "Shuffle Population" the population is redistributed such that the ethnicities are maximally equally distributed. That means, in each district, the four ethnicity counts of the population in each SES group is replaced by numbers summing up to the same total but with proportions equalling the proportions of the total ethnicity counts in this SES group in the whole town. That way, the total number of the individuals in the twelve ethnicity-SES groups remains the same for the whole town and the total number of indiviuals per SES group remains the same in each LSOA but the counts of the ethnicities in each districts are in the same proportion as in the whole town. As a consequence, location quotients and dissimilarity for all ethnicities are zero and local Simpson and entropy coincide with the measure on the town level. 
-
-The shuffling is essential for our main modeling goal: Exploring to what degree certain parameter configurations let the empirical segregation patterns emerge from shuffled population, and, if yes, to what degree these parameter configurations are universal across towns. 
 
 
-### Simulation
 
-The simulation runs over several ticks which represents a unit time step. 
-In each tick, we simulate several individual decisions to search for new options and consequently if they relocate to these residences. The number of these individual decision is chosen such that it coincides on average with the total population of the town. That means, every individual makes such a decision every tick. Note, that obviously these decisions can be repeated reconfirmations that the current residence is fine. 
+<!-- We explored the model focussing on Bradford and concluded with the following baseline parameters: For the threshold distribution the mean is $\mu_\theta = 0.3$ and standard deviation $\sigma_\theta = 0.1$. In the utility function the weights are $\beta_\text{Eth} = 6$ and $\beta_\text{SES} = 12$. Further on, houses in the model are tied to individuals from the same SES (`tie-houses-to-ses = TRUE`).  -->
 
-The selection of an individual is modeled  by first selecting a district at random and second on of the individuals from the list of list stored in that district. From the selected sublist we know the ethnicity, the SES and the threshold of the individual.^[LSOAs differ in size. Therefore, we adjusted for that by selecting and individual from districts with below average population only with a certain probability. In the case of an above average district, we do more than one individual decision with probabilities such that the expected number of decisions fits to the the relative size of the district.]
+<!-- The other parameters were not the focus of the model exploration. They were set to `free-space` of 0.05 more than initial population and a weight for neighboring districts when calculating the fraction of neighbors' ethnicities of `neighbor-weight` = 0.17. We will briefly discuss the impact of other values later.  -->
 
-Once an individual is selected the process is as follows: First, the individual may be forced to move with a (small) probability of `turnover` (e.g. 0.003). In this case, the individual selects another place to move. This place is randomly selected from all available places suitable for the SES of the individual in the whole town.^[To that end, we compute for each district the difference between the population count and the maximal population for the respective SES group. Then we select one district with probabilities proportional to that number, a procedure sometimes called roulette wheel selection.] When the individual is not forced to move, the individual assesses their utility with the current residence using the equation above. This includes the computation of the fractions of population with the same ethnicity and the same SES in the neighborhood and the draw of a random number from a standard Gumbel distribution. The parameter `neighbor-weight` weights the population of all neighboring districts for the counts used to compute the fractions in the neighborhood (e.g. 0.17). When the utility obtained from the current residence is negative, the individual starts to search. In the model that means, the individual selects a potential new place with the same procedure. Naturally, this place lies most likely in another district. The individual then assesses the utility for the new place in the same way as it assessesed the utility for the current residence (but with a new independent random draw from a Gumbel distribution). Finally, the individual moves to the new place when the utility from the new place is higher than the utility form the current place. Technically, then the counts in the old and new districts are updated and the sublist for the list of individuals is removed in the old district and appended to the list in the new district. In that way, the individual carries also their the individual threshold to the new district. 
+<!-- Figure \@ref(fig:BradfordBaseline) shows the fractions of the four ethnic groups in all LSOA's as it emerged in simulation in comparison with the empirical data. For each ethnic group two maps are shown as well as the distributions of the fractions over all LSOA's in for direct comparison. The simulation data emerged after 2,000 time steps from a shuffled population such that ethnicity shares in each district were equal to the ethnic.  -->
 
-The model provides three switches (binary paramters) which makes the simulation procedures different in one particular detail: (1) when `tie-houses-to-ses` is set false then the individuals are not confined to moves to free spaces with their SES group but to any free place in the town; (2) when `decide-search-first` is set false an individual which is not forced to move will skip the first decision step and directly searches a potential new place and compares this utility to the utility of the current residence; and (3) when `others-ignore-ethn` is set false the ethnic group OTHER is treated in the same way as all other ethnic groups. 
+<!-- ```{r BradfordBaseline, fig.cap="Bradford baseline setting. "} -->
+<!-- include_graphics("figs/Bradford_baseline_t2000.png") -->
+<!-- ``` -->
 
+<!-- The figure shows a remarkable similarity between the simulation and empirical data with respect to the distribution of the fraction of ethnic groups over all districts. This works for all three ethnic groups and even fairly well for the OTHERs. The spatial patterns are also similar with, e.g., two to three clusters of almost only ASIANs surrounded by diverse LSOAs. Only the exact location of clusters is not reproduced as in the empirical map. This could not be expected as the simulation starts from equalized districts and the only remaining demographic information is the distribution of houses for the three socio-economic status groups.  -->
 
-### ABM exploration strategies
+<!-- Figure \@ref(fig:Simpson) shows the excess local Simpson index of districts. That means how much less or more diverse districts are compared to the towns overall Simpson index.  -->
 
-The general procedure of the exploration is to
+<!-- ```{r Simpson, fig.cap="Bradford baseline setting. Simpson Index."} -->
+<!-- include_graphics("figs/Bradford_baseline_Simpson_t2000.png") -->
+<!-- ``` -->
 
-  1. Decide for a (reasonable) parameter setting (in particular `free-space`, `threshold-mean`, `threshold-sd`, `neighbor-weight`, `beta-eth`, `beta-ses`). 
-  2. Load a town
-  3. Shuffle the population
-  4. Run the simulation for long time until the town reaches a (meta-)stable state, e.g. until certain macroscopic segregation measures remain more or less stable. 
+<!-- Figure \@ref(fig:Differences) shows that just having ethnicity preferences in the utility function would lead to almost full segragation of Asians (and of other ethnicities, but not shown), while only SES in the utility function does not trigger any substantial ethnic segregation. Further on, it shows that equal importance of ethnicity and SES similarity in the utility function would still lead to over segregation.  -->
+
+<!-- ```{r Differences, fig.cap="Differences."} -->
+<!-- include_graphics("figs/Bradford_baseline_t2000_Differences.png") -->
+<!-- ``` -->
+
+<!-- Another interesting finding is that average SES of minority ethnicities is empirically more unequal than the average SES of the white British. This is especially the case for high average SES. The simulation shows that this is also an emergent property in our model as shown in Figure \@ref{fig:AverageSES}.  -->
+
+<!-- ```{r AverageSES, fig.cap="Average SES"} -->
+<!-- include_graphics("figs/Bradford_baseline_t2000_AverageSES.png") -->
+<!-- ``` -->
+
+## Other towns with the same parameters
   
-The simulation otucome can then be matched against real data, e.g.
- 
-  * How good is the fit of the emegring distribution of the fractions of ethnicities over all LSOA with the original unshuffled population.
-  * How good is the fit with respect to other measures, e.g. segregation measures or fraction of SES and ethnicty-SES groups. 
-  * How realisitic are the total number of forced moves, searches, and voluntary moves per tick. 
+# Appendix: Further exploration ABM
 
-All the comparisons with empirical data can be done with respect to a transition state or in a meta-stable state. Goodness of fit is not fully formalized yet but goes qualitatively for now. 
-
-The exploration steps can then be repeated for other parameter consellations and other towns. 
-
-The first focus was to find parameter settings such that the distribution of the fraction of the ASIAN population over LSOA is reproduced similarily for many towns. 
-
-<!-- The following constellation delivered a surprisingly good result: -->
-<!-- `free-space` = 0.05, `threshold-mean`=0.3 , `threshold-sd`=0.12, `neighbor-weight`=0.25, `beta-ethn`=8, `beta-ses`=12, and `forced-moves`=0.003.  -->
-
-<!-- ```{r, fig.cap="Birmingham Asian Empricial Data"} -->
-<!-- include_graphics("figs/Birmingham_Asian_Emp Screenshot from 2020-03-12 23-40-28.png") -->
-<!-- ``` -->
-
-<!-- ```{r, fig.cap="Birmingham Asian Meta-stable State Simulation"} -->
-<!-- include_graphics("figs/Birmingham_Asian_Sim Screenshot from 2020-03-12 23-40-50.png") -->
-<!-- ``` -->
-
-<!-- ```{r, fig.cap="Manchester Asian Meta-stable State Simulation"} -->
-<!-- include_graphics("figs/Manchester_Asian_Sim Screenshot from 2020-03-12 22-40-23.png") -->
-<!-- ``` -->
-
-<!-- ```{r, fig.cap="Manchester Black Meta-stable State Simulation"} -->
-<!-- include_graphics("figs/Manchester_Black_Sim Screenshot from 2020-03-12 22-40-58.png") -->
-<!-- ``` -->
-
-<!-- ```{r, fig.cap="Southampton Asian Meta-stable State Simulation"} -->
-<!-- include_graphics("figs/Southampton_Asian_sim Screenshot from 2020-03-12 22-52-32.png") -->
-<!-- ``` -->
-
-<!-- ```{r, fig.cap="Southampton Black Meta-stable State Simulation"} -->
-<!-- include_graphics("figs/Southampton_Black_Sim Screenshot from 2020-03-12 22-53-00.png") -->
-<!-- ``` -->
+Notes 
 
 
-### ABM exploratory analysis (outline for paper)
+Model usage:   
+For the purpose of simulation speed all population counts can be scaled down by the factor `scale-down-pop`. We used a scale-down of factor 10 after extensively testing that it shows no recognizable difference. 
 
-We explored the model focussing on Bradford and concluded with the following baseline parameters: For the threshold distribution the mean is $\mu_\theta = 0.3$ and standard deviation $\sigma_\theta = 0.1$. In the utility function the weights are $\beta_\text{Eth} = 6$ and $\beta_\text{SES} = 12$. Further on, houses in the model are tied to individuals from the same SES (`tie-houses-to-ses = TRUE`). 
-
-The other parameters were not the focus of the model exploration. They were set to `free-space` of 0.05 more than initial population and a weight for neighboring districts when calculating the fraction of neighbors' ethnicities of `neighbor-weight` = 0.17. We will briefly discuss the impact of other values later. 
-
-Figure \@ref(fig:BradfordBaseline) shows the fractions of the four ethnic groups in all LSOA's as it emerged in simulation in comparison with the empirical data. For each ethnic group two maps are shown as well as the distributions of the fractions over all LSOA's in for direct comparison. The simulation data emerged after 2,000 time steps from a shuffled population such that ethnicity shares in each district were equal to the ethnic. 
-
-```{r BradfordBaseline, fig.cap="Bradford baseline setting. "}
-include_graphics("figs/Bradford_baseline_t2000.png")
-```
-
-The figure shows a remarkable similarity between the simulation and empirical data with respect to the distribution of the fraction of ethnic groups over all districts. This works for all three ethnic groups and even fairly well for the OTHERs. The spatial patterns are also similar with, e.g., two to three clusters of almost only ASIANs surrounded by diverse LSOAs. Only the exact location of clusters is not reproduced as in the empirical map. This could not be expected as the simulation starts from equalized districts and the only remaining demographic information is the distribution of houses for the three socio-economic status groups. 
-
-Figure \@ref(fig:Simpson) shows the excess local Simpson index of districts. That means how much less or more diverse districts are compared to the towns overall Simpson index. 
-
-```{r Simpson, fig.cap="Bradford baseline setting. Simpson Index."}
-include_graphics("figs/Bradford_baseline_Simpson_t2000.png")
-```
-
-Figure \@ref(fig:Differences) shows that just having ethnicity preferences in the utility function would lead to almost full segragation of Asians (and of other ethnicities, but not shown), while only SES in the utility function does not trigger any substantial ethnic segregation. Further on, it shows that equal importance of ethnicity and SES similarity in the utility function would still lead to over segregation. 
-
-```{r Differences, fig.cap="Differences."}
-include_graphics("figs/Bradford_baseline_t2000_Differences.png")
-```
-
-Another interesting finding is that average SES of minority ethnicities is empirically more unequal than the average SES of the white British. This is especially the case for high average SES. The simulation shows that this is also an emergent property in our model as shown in Figure \@ref{fig:AverageSES}. 
-
-```{r AverageSES, fig.cap="Average SES"}
-include_graphics("figs/Bradford_baseline_t2000_AverageSES.png")
-```
-
-TODO: 
-SOME MORE WORDS THAT
-CHECK OTHER CITIES WITH THE SOME PARAMETERS. 
-
-Further topics to be discussed as extensions or robustness tests listed under "Further parameters :
-
+Further topics to be discussed as extensions or robustness tests listed under "Further parameters:   
   - Turnover (replaces what was called forced moves before).
   - Version were individuals do not decide if they want to move but always search for an option and move if the found place is better. 
   - Treat the ethnicity OTHER not a normal ethnicity and not as ignoring the fraction of ethnicities. 
-  
 
+
+  - Baseline setting, start simulation form original data initial conditions. Result: It increases to higher segregation levels. So, the exact empirical situation is not close to be stochastically stable (although the situation emerging from shuffled population is close to stochastically stable and close to empirical data on macroscopic measures. ). Discuss potential trends and shortcomings of the model. )
+  - Baseline setting check impact of `neighbor-weight`. Show `neighbor-weight` = 1 and 0.
+  - Baseline setting check impact of `free-space`. Show 0.01 and 0.4. Result: This mainly confines people more or less to keep the SES structure. With higher `free-space` people can realize more of similarity with respect to SES and thus produce less segregation based on ethnicity (but more with respect to SES). 
+	
 
 
 # References

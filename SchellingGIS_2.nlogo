@@ -20,8 +20,7 @@ staticempiricals-own [ id popdata ethnicity-counts ses-counts totalpop maxpop se
 to setup
   clear-all
   ask patches [set pcolor 68]
-  set townshp gis:load-dataset (word "shp_NetLogo/" town "/" town ".shp")
-  gis:set-world-envelope (gis:envelope-union-of (gis:envelope-of townshp))
+  load-gisdataset
   let vars [ "WHTB_HG" "WHTB_MD" "WHTB_LW" "ASN_HGH" "ASIN_MD" "ASIN_LW" "BLCK_HG" "BLCK_MD" "BLCK_LW" "OTHRTH_H" "OTHRTH_M" "OTHRTH_L" ]
   set ethnicities [ "WHITEB" "ASIAN" "BLACK" "OTHER" ]
   set sess [ "LOW" "MID" "HIGH" ]
@@ -92,7 +91,7 @@ to go
   ]]
   visualize
   print (word
-    ifelse-value (decide-search-first) [(word decisions-count " decisions, ")] [""]
+    ifelse-value (always-search) [""] [(word decisions-count " decisions, ")]
     ifelse-value (turnover > 0) [(word forced-moves-count " randomly replaced via turnover (" precision (100 * forced-moves-count / decisions-count) 1 "%), ")] [""]
     searches-count " searches (" precision (100 * searches-count / decisions-count) 1 "%), "
     moves-count " moves (" precision (100 * moves-count / decisions-count) 1 "%) in  " timer " seconds")
@@ -113,12 +112,13 @@ to individual-decides ; in a districts select a "virtual" person and let this de
   ] [
     let thresh item 2 indiv
     let U_home utility ethn-ind ses-ind thresh
-    if U_home < 0 or not decide-search-first [
+    if U_home < 0 or always-search [
       set searches-count searches-count + 1
       let option ifelse-value (tie-houses-to-ses) [random-ses-option ses-ind] [random-option]
       let U_option [utility ethn-ind ses-ind thresh] of option
-      let free ifelse-value (tie-houses-to-ses) [[(item ses-ind ses-maxpop) - (item ses-ind ses-counts)] of option] [[maxpop - totalpop] of option]
-      if (free > 0) and (U_option - U_home > 0) [
+      ;let free ifelse-value (tie-houses-to-ses) [[(item ses-ind ses-maxpop) - (item ses-ind ses-counts)] of option] [[maxpop - totalpop] of option]
+      if (U_option - U_home > 0) or (move-randomly) [
+      ;if (free > 0) and (U_option - U_home > 0) [
         set moves-count moves-count + 1
         individual-moves option ethn-ind ses-ind indiv-ind indiv
       ]
@@ -161,8 +161,6 @@ end
 
 to visualize
   ask turtles [set size 0 set label ""]
-;  if (measure != "ethnicity location quotient" and measure != "ethnicity dissimilarity" and measure != "observable utility" and not member? "avg threshold" measure and
-;      measure != "pop / mean pop") [set color-axis-max 1]
   foreach gis:feature-list-of townshp [ x ->
     let dist ifelse-value (data-source = "empirical (static)")
       [one-of staticempiricals with [id = (gis:property-value x "LSOA11C")]]
@@ -175,6 +173,10 @@ to visualize
   ask links [set hidden? not show-links]
   gis:set-drawing-color black
   gis:draw townshp 1
+end
+
+to toggle-color-axis-max
+  set color-axis-max ifelse-value (color-axis-max = 1) [precision max [abs value-for-monitoring self] of ifelse-value (data-source = "empirical (static)") [staticempiricals] [districts] 1] [1]
 end
 
 to print-town-data
@@ -204,14 +206,7 @@ to print-town-data
   output-print (word " Avg local Simpson-Index: " precision (sum [totalpop * ethnic-simpson] of districts / sum [totalpop] of districts) 3)
   output-print (word " Town Simpson-Index: " precision town-ethnic-simpson 3)
   output-print (word " Excess avg local Simpson-Index: " precision (sum [totalpop * (ethnic-simpson - town-ethnic-simpson)] of districts / sum [totalpop] of districts) 3)
-  ; output-print (word " Mean local entropy: " precision (sum [totalpop * ethnic-entropy] of districts / sum [totalpop] of districts) 3)
-  ; output-print (word " Town entropy: " precision town-ethnic-entropy 3
-  ;   " (Diff " precision (sum [totalpop * (town-ethnic-entropy - ethnic-entropy)] of districts / sum [totalpop] of districts) 3 ")")
   foreach range length ethnicities [x -> output-print (word " Dissimilarity " item x ethnicities ": " precision (sum [totalpop * dissimilarity x] of districts / sum [totalpop] of districts) 3)]
-end
-
-to toggle-color-axis-max
-  set color-axis-max ifelse-value (color-axis-max = 1) [precision max [abs value-for-monitoring self] of ifelse-value (data-source = "empirical (static)") [staticempiricals] [districts] 1] [1]
 end
 
 ;; REPORTER FOR MONITORING
@@ -247,11 +242,11 @@ to-report value-for-monitoring [dist]
 end
 to-report simpson [p] report sum (map [x -> x ^ 2] p) end
 to-report entropy [p] report 0 - 1 / ln (length p) * (sum (map [x -> x * ifelse-value (x = 0) [0] [ln x]] p)) end
-to-report ethnic-simpson report simpson normalize-list ethnicity-counts end
+to-report ethnic-simpson report simpson sublist (normalize-list ethnicity-counts) 0 (ifelse-value (others-ignore-ethn) [2] [3]) end
 to-report ethnic-entropy report entropy normalize-list ethnicity-counts end
 to-report ses-simpson report simpson normalize-list ses-counts end
 to-report ses-entropy report entropy normalize-list ses-counts end
-to-report town-ethnic-simpson report simpson normalize-list count-ethnicities town-popdata end
+to-report town-ethnic-simpson report simpson sublist (normalize-list town-ethnicity-counts) 0 (ifelse-value (others-ignore-ethn) [2] [3]) end
 to-report town-ethnic-entropy report entropy normalize-list count-ethnicities town-popdata end
 to-report average-ses report (sum (map [[ x y ] -> x * y] ses-counts range length sess)) / totalpop / (length sess - 1) end
 to-report ethnicity-average-ses [ethn-ind] report ifelse-value (item ethn-ind ethnicity-counts > 0)
@@ -264,6 +259,9 @@ end
 to-report dissimilarity-string [ethn-ind] report (word (precision (sum [totalpop * dissimilarity ethn-ind] of districts / sum [totalpop] of districts) 3)
   " (emp " (precision (sum [totalpop * dissimilarity ethn-ind] of staticempiricals / sum [totalpop] of staticempiricals) 3) ")") end
 to-report location-quotient [ethn-ind] report (item ethn-ind ethnicity-counts / item ethn-ind town-ethnicity-counts) / (totalpop / town-totalpop) end
+to-report interaction [dists ethn-ind1 ethn-ind2] report ifelse-value (interaction-within = "all") [interaction-all districts ethn-ind1 ethn-ind2] [interaction-ses districts (position interaction-within sess) ethn-ind1 ethn-ind2] end
+to-report interaction-all [dists ethn-ind1 ethn-ind2] report sum [ (item ethn-ind1 ethnicity-counts / item ethn-ind1 town-ethnicity-counts) * (item ethn-ind2 ethnicity-counts / totalpop) ] of dists end
+to-report interaction-ses [dists ses-ind ethn-ind1 ethn-ind2 ] report sum [ ((item ses-ind item ethn-ind1 popdata) / (item ses-ind item ethn-ind1 town-popdata)) * ((item ethn-ind2 ethnicity-counts) / totalpop) ] of dists end
 to-report moran-I [dists]
   let m mean [value-for-monitoring self] of dists
   report (count dists / sum [count link-neighbors] of dists) *
@@ -272,7 +270,7 @@ end
 
 ;; GENERAL REPORTERS
 ; For selection of "a random person"
-to-report random-option report rnd:weighted-one-of districts [maxpop - totalpop] end
+to-report random-option report rnd:weighted-one-of districts [max list 0 (maxpop - totalpop)] end
 to-report random-ses-option [ses-ind] report rnd:weighted-one-of districts [max list 0 (item ses-ind ses-maxpop - item ses-ind ses-counts)] end
 ; For computations on popdata-type lists of lists
 to-report count-sess [popd] report map [y -> sum map [x -> item y x] popd] range length sess end
@@ -297,7 +295,7 @@ to-report random-gumbel report (- ln (- ln random-float 1)) end
 to baseline-further-parameters
   set free-space 0.05
   set turnover 0
-  set decide-search-first true
+  set always-search false
   set neighbor-weight 0.17
   set others-ignore-ethn true
 end
@@ -309,12 +307,39 @@ to baseline-core-parameters
   set beta-eth 6
   set beta-ses 12
 end
+
+;; EXPORT DATA
+
+to export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks [TOW TH-M TH-SD TIEHOUSE B-ETH B-SES TI]
+  set town TOW
+  set scale-down-pop 10
+  baseline-further-parameters
+  set threshold-mean TH-M
+  set threshold-sd TH-SD
+  set tie-houses-to-ses TIEHOUSE
+  set beta-eth B-ETH
+  set beta-ses B-SES
+  setup
+  shuffle-population
+  repeat stop-tick [ go ]
+  export-world (word "SchellingGIS_World_Exports/" TOWN "_" TH-M "_" TH-SD "_" TIEHOUSE "_" B-ETH "_" B-SES "_t" TI ".csv")
+end
+
+to load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks [TOW TH-M TH-SD TIEHOUSE B-ETH B-SES TI]
+  import-world (word "SchellingGIS_World_Exports/" TOWN "_" TH-M "_" TH-SD "_" TIEHOUSE "_" B-ETH "_" B-SES "_t" TI ".csv")
+  load-gisdataset
+end
+
+to load-gisdataset
+  set townshp gis:load-dataset (word "shp_NetLogo/" town "/" town ".shp")
+  gis:set-world-envelope (gis:envelope-union-of (gis:envelope-of townshp))
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
-522
-127
-1090
-696
+517
+124
+1085
+693
 -1
 -1
 16.97
@@ -342,7 +367,7 @@ BUTTON
 36
 312
 69
-Load town
+Load town to Sim
 setup\n
 NIL
 1
@@ -355,10 +380,10 @@ NIL
 1
 
 BUTTON
-481
-39
-655
-82
+476
+36
+650
+79
 Update Visualization
 visualize\nupdate-plots
 NIL
@@ -372,11 +397,11 @@ NIL
 1
 
 BUTTON
-460
-630
-515
-694
-NIL
+453
+626
+508
+690
+Go
 go
 T
 1
@@ -389,10 +414,10 @@ NIL
 1
 
 SWITCH
-910
-94
-1036
-127
+905
+91
+1031
+124
 show-labels
 show-labels
 1
@@ -400,10 +425,10 @@ show-labels
 -1000
 
 BUTTON
-327
-342
-515
-376
+320
+339
+507
+373
 Shuffle Population
 shuffle-population
 NIL
@@ -432,13 +457,13 @@ NIL
 HORIZONTAL
 
 PLOT
-1102
-46
-1461
-230
-distribution of measure in districts
+1092
+37
+1313
+194
+distribution districts
 sorted districts
-value
+measure
 0.0
 10.0
 0.0
@@ -451,11 +476,11 @@ PENS
 "emp" 1.0 0 -7500403 true "" "let y sort filter is-number? map value-for-monitoring [self] of staticempiricals\nforeach range length y [x -> plotxy x item x y ]\n"
 
 PLOT
-1102
-229
-1415
-366
-histogram of measure in districts
+1312
+37
+1496
+194
+histogram districts
 measure
 #districts
 0.0
@@ -484,14 +509,14 @@ OUTPUT
 3
 102
 312
-697
+641
 12
 
 SLIDER
-1483
-120
-1631
-153
+1514
+118
+1662
+151
 free-space
 free-space
 0
@@ -503,42 +528,42 @@ NIL
 HORIZONTAL
 
 SWITCH
-1483
-209
-1653
-242
-decide-search-first
-decide-search-first
-0
+1514
+207
+1659
+240
+always-search
+always-search
+1
 1
 -1000
 
 SWITCH
-327
-307
-514
-340
+320
+304
+507
+337
 tie-houses-to-ses
 tie-houses-to-ses
-1
+0
 1
 -1000
 
 CHOOSER
-323
-39
-481
-84
+318
+36
+476
+81
 data-source
 data-source
 "empirical (static)" "simulation (dynamic)"
 1
 
 PLOT
-1103
-370
-1415
-531
+1092
+227
+1424
+371
 segregation index
 time
 Simpson-I
@@ -550,14 +575,14 @@ true
 true
 "" ""
 PENS
-"avg Simpson-I" 1.0 0 -2674135 true "" "plot sum [totalpop * ethnic-simpson] of districts / sum [totalpop] of districts"
+"avg local Simpson-I" 1.0 0 -13345367 true "" "plot sum [totalpop * ethnic-simpson] of districts / sum [totalpop] of districts"
 "town Simpson-I" 1.0 0 -7500403 true "" "plot town-ethnic-simpson"
 
 SWITCH
-910
-63
-1036
-96
+905
+60
+1031
+93
 show-links
 show-links
 1
@@ -565,10 +590,10 @@ show-links
 -1000
 
 SLIDER
-327
-272
-514
-305
+320
+269
+507
+302
 threshold-sd
 threshold-sd
 0
@@ -580,10 +605,10 @@ NIL
 HORIZONTAL
 
 PLOT
-327
-380
-515
-511
+320
+377
+507
+508
 thresholds
 threshold
 #agents
@@ -598,10 +623,10 @@ PENS
 "default" 0.025 1 -16777216 true "" "histogram all-thresholds"
 
 MONITOR
-1296
-468
-1465
-513
+1285
+291
+1454
+336
 excess avg Simpson index
 (word (precision (sum [(ethnic-simpson - town-ethnic-simpson) * totalpop] of districts / sum [totalpop] of districts) 3)\n   \" (emp. \" (precision (sum [(ethnic-simpson - town-ethnic-simpson) * totalpop] of staticempiricals / sum [totalpop] of staticempiricals) 3) \")\")
 3
@@ -609,40 +634,40 @@ excess avg Simpson index
 11
 
 CHOOSER
-323
-126
-431
-171
+318
+123
+426
+168
 ethnicity
 ethnicity
 "WHITEB" "ASIAN" "BLACK" "OTHER"
 1
 
 CHOOSER
-430
-126
-522
-171
+425
+123
+517
+168
 ses
 ses
 "LOW" "MID" "HIGH"
 0
 
 CHOOSER
-323
-82
-522
-127
+318
+79
+518
+124
 measure
 measure
-"--- ethnicty-base ---" "ethnicity fraction" "ethnicity dissimilarity" "ethnicity location quotient" "ethnicity avg threshold" "ethnicity avg SES" "--- ses-based ---" "SES fraction" "SES avg threshold" "--- ethnicity- and SES-based ---" "ethnicity-SES fraction" "ethnicity-SES avg thres" "ethnicity-SES obs utility" "--- local segregation indices ---" "ethnic Simpson" "ethnic entropy" "excess ethnic Simpson" "loss ethnic entropy" "--- other measures ---" "pop / mean pop" "pop / max pop" "avg threshold" "avg SES"
+"--- for specific ethnicty ---" "ethnicity fraction" "ethnicity dissimilarity" "ethnicity location quotient" "ethnicity avg threshold" "ethnicity avg SES" "--- for specific SES ---" "SES fraction" "SES avg threshold" "--- for specific ethnicity and SES ---" "ethnicity-SES fraction" "ethnicity-SES avg thres" "ethnicity-SES obs utility" "--- local segregation indices ---" "ethnic Simpson" "ethnic entropy" "excess ethnic Simpson" "loss ethnic entropy" "--- other measures ---" "pop / mean pop" "pop / max pop" "avg threshold" "avg SES"
 1
 
 SLIDER
-327
-239
-514
-272
+320
+236
+507
+269
 threshold-mean
 threshold-mean
 0
@@ -664,50 +689,50 @@ TEXTBOX
 1
 
 TEXTBOX
-323
-11
-597
-33
-2. Explore Data
+318
+10
+592
+32
+2. Explore Local Data
 18
 114.0
 1
 
 TEXTBOX
-326
-189
-505
-209
+321
+186
+500
+206
 3. Setup Simulation
 18
 114.0
 1
 
 TEXTBOX
-330
-213
-468
-237
+325
+210
+463
+234
 individual thresholds from Beta-distribution
 9
 0.0
 1
 
 TEXTBOX
-331
-577
-491
-599
+326
+574
+486
+596
 4. Run Simulation
 18
 114.0
 1
 
 MONITOR
-1329
-557
-1465
-602
+1318
+415
+1454
+460
 Dissimilarity ASIAN
 dissimilarity-string 1
 3
@@ -715,10 +740,10 @@ dissimilarity-string 1
 11
 
 MONITOR
-1329
-512
-1465
-557
+1318
+370
+1454
+415
 Dissimilarity WHITEB
 dissimilarity-string 0
 3
@@ -726,10 +751,10 @@ dissimilarity-string 0
 11
 
 MONITOR
-1329
-602
-1465
-647
+1318
+460
+1454
+505
 Dissimilarity BLACK
 dissimilarity-string 2
 3
@@ -737,10 +762,10 @@ dissimilarity-string 2
 11
 
 MONITOR
-1329
-647
-1465
-692
+1318
+505
+1454
+550
 Dissilarity OTHER
 dissimilarity-string 3
 3
@@ -748,10 +773,10 @@ dissimilarity-string 3
 11
 
 PLOT
-1103
-530
-1330
-680
+1092
+370
+1319
+550
 dissimilarity
 time
 dissimilarity
@@ -769,10 +794,10 @@ PENS
 "OTHER" 1.0 0 -14439633 true "" "plot sum [totalpop * dissimilarity 3] of districts / sum [totalpop] of districts"
 
 SLIDER
-655
-49
-788
-82
+650
+46
+783
+79
 color-axis-max
 color-axis-max
 0.3
@@ -784,10 +809,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-1483
-176
-1653
-209
+1514
+174
+1684
+207
 turnover
 turnover
 0
@@ -799,27 +824,12 @@ NIL
 HORIZONTAL
 
 SLIDER
-328
-629
-454
-662
+321
+625
+447
+658
 beta-eth
 beta-eth
-0
-60
-0.0
-0.1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-328
-661
-454
-694
-beta-ses
-beta-ses
 0
 60
 6.0
@@ -829,10 +839,25 @@ NIL
 HORIZONTAL
 
 SLIDER
-1483
-241
-1653
-274
+321
+657
+447
+690
+beta-ses
+beta-ses
+0
+60
+12.0
+0.1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1514
+271
+1684
+304
 neighbor-weight
 neighbor-weight
 0
@@ -844,10 +869,10 @@ NIL
 HORIZONTAL
 
 SWITCH
-1483
-273
-1653
-306
+1514
+303
+1684
+336
 others-ignore-ethn
 others-ignore-ethn
 0
@@ -855,10 +880,10 @@ others-ignore-ethn
 -1000
 
 INPUTBOX
-1483
-38
-1544
-98
+1514
+36
+1575
+96
 stop-tick
 500.0
 1
@@ -866,10 +891,10 @@ stop-tick
 Number
 
 MONITOR
-522
-82
-779
-127
+517
+79
+774
+124
 data in map
 color-explain-string
 17
@@ -877,10 +902,10 @@ color-explain-string
 11
 
 MONITOR
-327
-511
-396
-556
+320
+509
+389
+554
 #agents
 town-totalpop
 17
@@ -888,10 +913,10 @@ town-totalpop
 11
 
 MONITOR
-778
-82
-910
-127
+773
+79
+905
+124
 Moran-I (spatial cor.)
 (word precision moran-I districts 3 \" (emp \" precision moran-I staticempiricals 3 \")\")
 3
@@ -899,41 +924,41 @@ Moran-I (spatial cor.)
 11
 
 TEXTBOX
-1480
-12
-1662
-31
+1511
+10
+1693
+29
 Further Parameters
 18
 114.0
 1
 
 TEXTBOX
-1484
-102
-1642
-120
+1515
+100
+1673
+118
 Used while loading town
 12
 0.0
 1
 
 TEXTBOX
-1484
-160
-1654
-178
+1515
+158
+1685
+176
 Used at simulation runtime
 12
 0.0
 1
 
 BUTTON
-788
-49
-910
-82
-Toggle 1|max
+783
+46
+905
+79
+Toggle 1| max
 toggle-color-axis-max\nvisualize\nupdate-plots
 NIL
 1
@@ -946,30 +971,30 @@ NIL
 1
 
 TEXTBOX
-1104
-13
-1465
-36
+1094
+10
+1455
+33
 5. Outcomes Simulation vs. Emipirical 
 18
 114.0
 1
 
 TEXTBOX
-334
-601
-510
-626
+329
+598
+505
+623
 weights for the fraction of similars in the function of observable utility
 9
 0.0
 1
 
 BUTTON
-1483
-309
-1681
-342
+1514
+339
+1712
+372
 Set baseline further params
 baseline-further-parameters\n
 NIL
@@ -983,10 +1008,10 @@ NIL
 1
 
 BUTTON
-1483
-341
-1681
-374
+1514
+371
+1712
+404
 Set baseline core params
 baseline-core-parameters
 NIL
@@ -997,6 +1022,352 @@ NIL
 NIL
 NIL
 NIL
+1
+
+BUTTON
+8
+707
+259
+740
+Run and export world current setting
+export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks town threshold-mean threshold-sd tie-houses-to-ses beta-eth beta-ses stop-tick
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+408
+706
+659
+739
+Load world current setting
+load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks town threshold-mean threshold-sd tie-houses-to-ses beta-eth beta-ses stop-tick
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+TEXTBOX
+1096
+208
+1246
+226
+Time trends\n
+12
+0.0
+1
+
+PLOT
+1092
+549
+1361
+693
+Individual activities
+time
+fraction
+0.0
+1.0
+0.0
+0.25
+true
+true
+"" ""
+PENS
+"searching" 1.0 0 -14835848 true "" "if ticks > 0 [plot searches-count / decisions-count]"
+"moving" 1.0 0 -955883 true "" "if ticks > 0 [plot moves-count / decisions-count]"
+
+MONITOR
+1289
+604
+1361
+649
+searching
+searches-count / decisions-count
+3
+1
+11
+
+MONITOR
+1289
+648
+1361
+693
+moving
+moves-count / decisions-count
+3
+1
+11
+
+BUTTON
+658
+706
+802
+739
+NIL
+load-gisdataset
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+263
+707
+403
+740
+Export timeline
+setup\nshuffle-population\nexport-world (word \"SchellingGIS_World_Exports/\" town \"_\" threshold-mean \"_\" threshold-sd \"_\" tie-houses-to-ses \"_\" beta-eth \"_\" beta-ses \"_t\" ticks \".csv\")\nrepeat 10 [ \n  repeat 20 [ go ]\n  export-world (word \"SchellingGIS_World_Exports/\" town \"_\" threshold-mean \"_\" threshold-sd \"_\" tie-houses-to-ses \"_\" beta-eth \"_\" beta-ses \"_t\" ticks \".csv\")\n]\nrepeat 500 [ go ]\nexport-world (word \"SchellingGIS_World_Exports/\" town \"_\" threshold-mean \"_\" threshold-sd \"_\" tie-houses-to-ses \"_\" beta-eth \"_\" beta-ses \"_t\" ticks \".csv\")\nexport-interface (word \"SchellingGIS_World_Exports/Interface_\" town \"_\" threshold-mean \"_\" threshold-sd \"_\" tie-houses-to-ses \"_\" beta-eth \"_\" beta-ses \"_t\" ticks \".png\")
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+MONITOR
+1570
+488
+1627
+533
+wPa
+interaction districts 0 1
+3
+1
+11
+
+MONITOR
+1514
+488
+1571
+533
+wPw
+interaction districts 0 0
+3
+1
+11
+
+MONITOR
+1514
+532
+1571
+577
+aPw
+interaction districts 1 0
+3
+1
+11
+
+MONITOR
+1570
+532
+1627
+577
+aPa
+interaction districts 1 1
+3
+1
+11
+
+MONITOR
+1626
+488
+1683
+533
+wPb
+interaction districts 0 2
+3
+1
+11
+
+MONITOR
+1626
+532
+1683
+577
+aPb
+interaction districts 1 2
+3
+1
+11
+
+MONITOR
+1514
+576
+1571
+621
+bPw
+interaction districts 2 0
+3
+1
+11
+
+MONITOR
+1570
+576
+1627
+621
+bPa
+interaction districts 2 1
+3
+1
+11
+
+MONITOR
+1626
+576
+1683
+621
+bPb
+interaction districts 2 2
+3
+1
+11
+
+MONITOR
+1682
+488
+1739
+533
+wPo
+interaction districts 0 3
+3
+1
+11
+
+MONITOR
+1682
+532
+1739
+577
+aPo
+interaction districts 1 3
+3
+1
+11
+
+MONITOR
+1682
+576
+1739
+621
+bPo
+interaction districts 2 3
+3
+1
+11
+
+MONITOR
+1514
+620
+1571
+665
+oPw
+interaction districts 3 0
+3
+1
+11
+
+MONITOR
+1570
+620
+1627
+665
+oPa
+interaction districts 3 1
+3
+1
+11
+
+MONITOR
+1626
+620
+1683
+665
+oPb
+interaction districts 3 2
+3
+1
+11
+
+MONITOR
+1682
+620
+1739
+665
+oPo
+interaction districts 3 3
+3
+1
+11
+
+TEXTBOX
+1514
+466
+1748
+484
+Interaction/Isolation Index (xPx/xPy)
+12
+0.0
+1
+
+CHOOSER
+1590
+665
+1739
+710
+interaction-within
+interaction-within
+"all" "LOW" "MID" "HIGH"
+0
+
+SWITCH
+1514
+239
+1659
+272
+move-randomly
+move-randomly
+1
+1
+-1000
+
+TEXTBOX
+1664
+213
+1743
+239
+skip decision step 1
+9
+0.0
+1
+
+TEXTBOX
+1664
+243
+1732
+266
+skip decision step 2
+9
+0.0
 1
 
 @#$#@#$#@
@@ -1011,6 +1382,11 @@ NIL
 ## HOW TO USE IT
 
 (how to use the model, including a description of each of the items in the Interface tab)
+
+Clicking "Load town" in the interface section "1. Load Town from GIS Data" initializes a simulation by loading the LSOA shapes of a town (which are provided in ESRI format in a subfolder) using NetLogo's GIS extension.
+
+For the purpose of simulation speed all population counts can be scaled down by the factor `scale-down-pop`. 
+ 
 
 ## THINGS TO NOTICE
 
@@ -1027,6 +1403,40 @@ NIL
 ## NETLOGO FEATURES
 
 (interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
+
+For each LSOA an agent of the breed `district` is created located at the center of the LSOA. Further on, links are created between districts representing shapes which share a border.
+
+Each district object stores the counts for all twelve types of individuals (four ethnicities times three socio-economic status) in a variable. 
+
+Bradford
+
+|Ethnicity |  high|   low|   mid|
+|:---------|-----:|-----:|-----:|
+|asian     |  9922| 21004| 14407|
+|black     |  1292|  2183|   789|
+|othereth  |  2993|  8922|  2740|
+|whiteb    | 35004| 62098| 33066|
+
+Bradford LSOA E01010597
+
+|Ethnicity | high| mid| low|
+|:---------|----:|---:|---:|
+|whiteb    |  191| 217| 352|
+|asian     |   28|  38|  55|
+|black     |    7|  10|   7|
+|othereth  |   19|   8|  44|
+
+Further on, in each district a list of lists is created where each sublist represents one of the individuals in the district. Each sublist has three elements: The indication of the individual's ethnicity, the indication of the individual's SES, and a random number from a Beta-distribution drawn upon initialization representing the individual's theshold $\theta$. The Beta-distribution is parameterized by the two parameters `threshold-mean` $\mu_\theta$ and `threshold-sd` $\sigma_\theta$ (in the section "3. Setup Simulation") representing the mean and the standard deviation of the thresholds in the population. 
+
+Finally, for each district we set maximal numbers of individuals for each SES group. These numbers are set such that a is a fraction of `free-space` of these maximal number are not occupied initially. Thus, we assume that in each district there are certain fractions of houses, flats, or rooms suitable and affordable for each of the three SES groups. With `free-space` = 0.05, 5% of these places are initially free. 
+
+Compared to a typical model in NetLogo our implementation does not represent each individual as an agent but as an item in a list stored by a district (which is an agent in our implementation). 
+
+The selection of an individual is modeled  by first selecting a district at random and second on of the individuals from the list of list stored in that district. From the selected sublist we know the ethnicity, the SES and the threshold of the individual. LSOAs differ in size. Therefore, we adjusted for that by selecting and individual from districts with below average population only with a certain probability. In the case of an above average district, we do more than one individual decision with probabilities such that the expected number of decisions fits to the the relative size of the district.
+
+Once an individual is selected the process is as follows: First, the individual may be forced to move with a (small) probability of `turnover` (e.g. 0.003). In this case, the individual selects another place to move. This place is randomly selected from all available places suitable for the SES of the individual in the whole town.^[To that end, we compute for each district the difference between the population count and the maximal population for the respective SES group. Then we select one district with probabilities proportional to that number, a procedure sometimes called roulette wheel selection.] When the individual is not forced to move, the individual assesses their utility with the current residence using the equation above. This includes the computation of the fractions of population with the same ethnicity and the same SES in the neighborhood and the draw of a random number from a standard Gumbel distribution. The parameter `neighbor-weight` weights the population of all neighboring districts for the counts used to compute the fractions in the neighborhood (e.g. 0.17). When the utility obtained from the current residence is negative, the individual starts to search. In the model that means, the individual selects a potential new place with the same procedure. Naturally, this place lies most likely in another district. The individual then assesses the utility for the new place in the same way as it assessesed the utility for the current residence (but with a new independent random draw from a Gumbel distribution). Finally, the individual moves to the new place when the utility from the new place is higher than the utility form the current place. Technically, then the counts in the old and new districts are updated and the sublist for the list of individuals is removed in the old district and appended to the list in the new district. In that way, the individual carries also their the individual threshold to the new district. 
+
+
 
 ## RELATED MODELS
 
