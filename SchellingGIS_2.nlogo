@@ -70,6 +70,15 @@ to shuffle-population
   reset-ticks
 end
 
+to equalize-ses
+  ask districts [set popdata map [x -> map [y -> round (x * y)] normalize-list town-ses-counts ] ethnicity-counts]
+  ask districts [ setup-indivs-popdata-subcounts ]
+  set town-popdata matrix:to-row-list reduce matrix:plus [matrix:from-row-list popdata] of districts
+  set town-ethnicity-counts count-ethnicities town-popdata
+  set town-ses-counts count-sess town-popdata
+  set town-totalpop count-totalpop town-popdata
+end
+
 to setup-indivs-popdata-subcounts
   set ethnicity-counts count-ethnicities popdata
   set ses-counts count-sess popdata
@@ -117,7 +126,7 @@ to individual-decides ; in a districts select a "virtual" person and let this de
       let option ifelse-value (tie-houses-to-ses) [random-ses-option ses-ind] [random-option]
       let U_option [utility ethn-ind ses-ind thresh] of option
       ;let free ifelse-value (tie-houses-to-ses) [[(item ses-ind ses-maxpop) - (item ses-ind ses-counts)] of option] [[maxpop - totalpop] of option]
-      if (U_option - U_home > 0) or (move-randomly) [
+      if (U_option - U_home > 0) or (always-move) [
       ;if (free > 0) and (U_option - U_home > 0) [
         set moves-count moves-count + 1
         individual-moves option ethn-ind ses-ind indiv-ind indiv
@@ -420,7 +429,7 @@ SWITCH
 124
 show-labels
 show-labels
-1
+0
 1
 -1000
 
@@ -489,7 +498,7 @@ measure
 50.0
 true
 false
-"" "clear-plot\nset-plot-x-range (min (list 0 map value-for-monitoring [self] of staticempiricals))  (max (list 1 map value-for-monitoring [self] of staticempiricals))"
+"" "clear-plot\n;max [value-for-monitoring self] of staticempiricals\nset-plot-x-range precision (min (fput 0 [value-for-monitoring self] of staticempiricals)) 1  precision (max (fput 1 [value-for-monitoring self] of staticempiricals)) 1"
 PENS
 "pen-1" 0.025 1 -4539718 true "" "histogram map value-for-monitoring [self] of staticempiricals"
 "pen-2" 0.025 1 -2674135 true "" "histogram filter is-number? map value-for-monitoring [self] of districts"
@@ -528,9 +537,9 @@ NIL
 HORIZONTAL
 
 SWITCH
-1514
+1589
 207
-1659
+1734
 240
 always-search
 always-search
@@ -545,7 +554,7 @@ SWITCH
 337
 tie-houses-to-ses
 tie-houses-to-ses
-0
+1
 1
 -1000
 
@@ -598,7 +607,7 @@ threshold-sd
 threshold-sd
 0
 0.3
-0.1
+0.0
 0.01
 1
 NIL
@@ -802,7 +811,7 @@ color-axis-max
 color-axis-max
 0.3
 8
-1.0
+6.2
 0.1
 1
 NIL
@@ -831,8 +840,8 @@ SLIDER
 beta-eth
 beta-eth
 0
-60
-6.0
+100
+12.0
 0.1
 1
 NIL
@@ -847,7 +856,7 @@ beta-ses
 beta-ses
 0
 60
-12.0
+0.0
 0.1
 1
 NIL
@@ -885,7 +894,7 @@ INPUTBOX
 1575
 96
 stop-tick
-500.0
+10000.0
 1
 0
 Number
@@ -1340,20 +1349,20 @@ interaction-within
 0
 
 SWITCH
-1514
+1589
 239
-1659
+1734
 272
-move-randomly
-move-randomly
+always-move
+always-move
 1
 1
 -1000
 
 TEXTBOX
-1664
+1519
 213
-1743
+1587
 239
 skip decision step 1
 9
@@ -1361,13 +1370,30 @@ skip decision step 1
 1
 
 TEXTBOX
-1664
+1519
 243
-1732
+1587
 266
 skip decision step 2
 9
 0.0
+1
+
+BUTTON
+855
+728
+1122
+761
+Shuffle Population / Equalize SES
+equalize-ses
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
 1
 
 @#$#@#$#@

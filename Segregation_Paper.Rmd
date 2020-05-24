@@ -39,55 +39,11 @@ The paper concludes with an overview of the key mechanisms associated to neighbo
 # Data
 
 ```{r LoadUKData}
-# source("R/write_SHP_UK_for_Netlogo.R")
-load("R/data")
-lsoa_ethn_ses <- long_districts %>% group_by(lsoa11cd) %>% mutate(fraction = count/sum(count))
-lsoa_ethn <- lsoa_ethn_ses %>% 
-  group_by(lsoa11cd, town, all, all1674valid, Ethnicity) %>% 
-  summarize(fraction = sum(count) / max(all1674valid), count = sum(count))
-lsoa_ses <- lsoa_ethn_ses %>% 
-  group_by(lsoa11cd, town, all, all1674valid, SES) %>%  
-  summarize(fraction = sum(count) / max(all1674valid), count = sum(count))
-lsoa <- lsoa_ethn_ses %>% mutate(SESnum = if_else(SES=="low", 0, if_else(SES=="mid",1,2))) %>% 
-  group_by(lsoa11cd, town, all, all1674valid) %>% 
-  summarize(average_ses = sum(count * SESnum)/sum(count)) %>% 
-  group_by(town) %>% 
-  mutate(fraction_lsoa = all1674valid/sum(all1674valid)) %>% group_by()
-towns_ethn_ses <- lsoa_ethn_ses %>% group_by(town, Ethnicity, SES) %>% 
-  summarize(count = sum(count)) %>% group_by(town) %>% mutate(fraction = count / sum(count)) %>% group_by()
-towns_ethn <- towns_ethn_ses %>%  group_by(town, Ethnicity) %>% 
-  summarize(count = sum(count)) %>% group_by(town) %>% mutate(fraction = count / sum(count)) %>% group_by()
-towns_ses <- towns_ethn_ses %>%  group_by(town, SES) %>% 
-  summarize(count = sum(count)) %>% group_by(town) %>% mutate(fraction = count / sum(count)) %>% group_by()
-towns <- towns_ethn_ses %>% mutate(SESnum = if_else(SES=="low", 0, if_else(SES=="mid",1,2))) %>% 
-  group_by(town) %>% 
-  summarize(average_ses = sum(count * SESnum)/sum(count), count = sum(count))
-# Dissimilarity, Location Quotient
-lsoa_ethn <- lsoa_ethn %>% left_join(select(towns_ethn, town, Ethnicity, fraction_ethnicity_town = fraction),
-                        by = c("town", "Ethnicity")) %>% 
-  group_by(lsoa11cd) %>% mutate(Dissimilarity = abs(fraction - fraction_ethnicity_town) / 
-                                  (2*fraction_ethnicity_town*(1-fraction_ethnicity_town)),
-                                Location_Quotient = fraction/fraction_ethnicity_town) 
-towns_ethn <- lsoa_ethn %>% left_join(select(lsoa,town,lsoa11cd,fraction_lsoa), c("lsoa11cd", "town")) %>%
-  group_by(town,Ethnicity) %>% 
-  summarize(Dissimilarity_Index = sum(fraction_lsoa * Dissimilarity)) %>% 
-  right_join(towns_ethn, c("town", "Ethnicity")) %>% group_by()
-towns <- towns_ethn %>% group_by(town) %>% 
-  summarize(Simpson_town = sum(fraction^2), 
-            Entropy_town = -1/log(4)*sum(fraction*log(fraction))) %>% 
-  right_join(towns, by = "town")
-towns <- lsoa_ethn %>% left_join(rename(towns, count_town=count), by = "town") %>% 
-  left_join(select(lsoa,town,lsoa11cd,fraction_lsoa), c("lsoa11cd", "town")) %>% 
-  group_by(lsoa11cd, town, fraction_lsoa, Simpson_town, Entropy_town) %>%
-  summarize(Simpson = sum(fraction^2), 
-            Entropy = -1/log(4)*sum(fraction*
-                                      if_else(fraction == 0, 0, log(fraction)))) %>% 
-  mutate(Excess_Simpson = Simpson - Simpson_town, Loss_Entropy = Entropy_town - Entropy) %>% 
-  group_by(town) %>% summarize(Avg_Simpson = sum(fraction_lsoa*Simpson), 
-                               Avg_Excess_Simpson = sum(fraction_lsoa*Excess_Simpson), 
-                               Avg_Entropy = sum(fraction_lsoa*Entropy),
-                               Avg_Loss_Entropy = sum(fraction_lsoa*Loss_Entropy)) %>% 
-  right_join(towns, by = "town")
+if (file.exists("R/lsoa_towns")) {
+	load("R/lsoa_towns")
+} else {
+		source("R/write_SHP_UK_for_Netlogo.R")
+}
 ```
 
 We use census data from ..SOURCE.. from the years 2011 and 2001. 
@@ -253,7 +209,7 @@ Highest average loss entropy, average excess Simpson index values, average entro
 ```{r}
  towns %>%  
   # filter(town %in% c("Birmingham","Bradford","Leicester","Manchester","Bristol","Sheffield","Leeds","Bristol","Liverpool","Coventry")) %>% 
-  select(town, Avg_Loss_Entropy, Avg_Excess_Simpson, average_ses, count) %>% 
+  select(town, Avg_Loss_Entropy, Avg_Excess_Simpson, count) %>% 
   arrange(desc(Avg_Excess_Simpson)) %>% head(10) %>% kable
 ```
 
@@ -276,7 +232,7 @@ lsoa_ses %>%
 
 We built an agent-based model of residential relocation within a town where we specify agents and space based on its geography and demographic data. In the model, each *agent* is demographically specified by *ethnicity* ("WHITEB", "ASIAN", "BLACK", or "OTHER"), *socio-economic status* ("LOW", "MID", or "HIGH"), and an individual *threshold* value which quantifies the minimal fractions of similar neighbors the agents needs to perceive positive utility from their residence. The *neighborhood* of the agent is the district of residence and to a lesser degree the neighboring districts. The *districts* in the model are the LSOA's of the town in their geographic location and districts are neighboring when they share a border.
 
-An agent's *decision to relocate* is modeled as a two-step process. First, the agent assesses the utility of their current residence. When utility is positive the agent stays at the current residence and the second step is skipped. When utility is negative the agent selects a potential new residence in the town randomly from all available places. Second, the agent assesses the utility of this option. The agent moves to the district of the new residence if the utility of this district is larger than the utility at the current residence. That way a free residence is created in the district the  agent is leaving. With the two-step process we unite two traditions of relocation models. In Schelling's original model [-@schelling1969models;-@schelling1971dynamic] agents only make a decision two leave and move to a random new place without checking if this improves their utility. In most models implementing discrete choice within Schelling's framework [@bruch2006neighborhood;@bruch2009preferences;@xie2012modeling], agents always compare their current residence with other options even if their current utility is very high.^[In the model, we provide further parameters to switch the two steps of the relocation decision on and off. When the first step is off, agents always search for an alternative location. When the second step is off agents always move to the selected alternative without checking if it has higher utility. These can be used for robustness tests.]
+An agent's *decision to relocate* is modeled as a two-step process. First, the agent assesses the utility of their current residence. When utility is positive the agent stays at the current residence and the second step is skipped. When utility is negative the agent selects a potential new residence in the town randomly from all available places. Second, the agent assesses the utility of this option. The agent moves to the district of the new residence if the utility in this district is larger than the utility at the current residence. That way a free residence is created in the district the  agent is leaving. With the two-step process we unite two traditions of relocation models. In Schelling's original model [-@schelling1969models;-@schelling1971dynamic] agents only make a decision to leave and move to a random new place without checking if this improves their utility. In most models implementing discrete choice within Schelling's framework [@bruch2006neighborhood;@bruch2009preferences;@xie2012modeling], agents always compare their current residence with other options even if their current utility is very high.^[In the model, we provide further parameters to switch the two steps of the relocation decision on and off. When the first step is off, agents always search for an alternative location. When the second step is off agents always move to the selected alternative without checking if it has higher utility. These can be used for robustness tests.]
 
 Formally, an agent with ethnicity $X$, socio-economic status $Y$, and threshold $\theta$ computes *utility* for a residence in district $i$ as 
 $$ U_{X,Y,\theta}(i) = \underbrace{\beta_\text{Eth} (P_i^X - \theta) + \beta_\text{SES} (P_i^Y - \theta)}_{\text{observable utility}} + \varepsilon$$
@@ -286,9 +242,9 @@ Utility increases linearly with $P_i^X$ as well as with $P_i^Y$. Thus, both simi
 
 In our particular case, it is reasonable to treat the ethnic group OTHER differently because they represent much more diverse groups of the population than WHITEB, ASIAN, or BLACK. They will perceive themselves as similars to a much lower degree. Therefore, we set $\beta_\text{Eth} = 0$ when  $X=$ OTHER.^[The model includes an additional parameter to switch the different behavior of OTHERs on and off. When off, OTHERs are treated as a normal ethnic group.] TO DECIDE AND CHANGE: WHEN WE TREAT OTHER DIFFERENTLY IT IS MORE CONSISTENT TO ALSO COMPUTE THE SIMPSON INDEX ACCORDINGLY: THE TERM $(P_i^\text{OTHER})^2$ CAN BE OMITTED. BECAUSE WE WOULD NOT ASSUME TWO RANDOMLY SELECTED PEOPLE FROM THIS GROUP AS SIMILAR. IF WE DO THIS, THIS HAS IMPLICATIONS FOR ALL ANALYSES! EMPIRICALLY, I SEE ONLY VERY SMALL CHANGES, SO IT MAY NOT CHANGE MUCH OF THE RESULTS. 
 
-*Unobservable utility* $\varepsilon$ is a random variable, analogous to error term in regression models. This is a standard in discrete choices that subscribe to random utility, assuming that people might not always select the best option based on observable utility, for whatever reason, still assuming a preference for utility maximization [@hess2018revisiting;@train2009discrete]. This is a well-established approach in empirical studies of residential mobility [@frankhauser2016deciding;@boschman2015neighbourhood], and in recent years used in Schelling-type simulations for sake of realistic decisions and assumptions on people's preferences [@bruch2012methodological;@bruch2009preferences]. Whenever utility is assessed, a random number for $\varepsilon$ is drawn from a standard Gumbel distribution.^[The standard Gumbel distribution is also known as generalized extreme value distribution type-I and has a mean of 0.577 (Euler-Masceroni constant) and a standard deviation of 1.283 ($\pi/\sqrt 6$)). Thus, when observed utility is zero in step one of the relocation decision, the probability to search is only 0.368. The probability to search is 0.5 for an observed utility of 0.367. In step two of the relocation decision, two random numbers are drawn, one for each alternative. The difference of two random variables with standard Gumbel distribution has a logistic distribution with mean zero and standard deviation 3.29 ($\pi^2/3$).] The lower $\beta_\text{Eth}$ and $\beta_\text{SES}$ are, the more the random contribution of unobserved utility has a stronger impact. 
+*Unobservable utility* $\varepsilon$ is a random variable, analogous to an error term in regression models. This is a standard in discrete choices that subscribe to random utility, assuming that people might not always select the best option based on observable utility, for whatever reason, still assuming a preference for utility maximization [@hess2018revisiting;@train2009discrete]. This is a well-established approach in empirical studies of residential mobility [@frankhauser2016deciding;@boschman2015neighbourhood], and in recent years used in Schelling-type simulations for sake of realistic decisions and assumptions on people's preferences [@bruch2012methodological;@bruch2009preferences]. Whenever utility is assessed, a random number for $\varepsilon$ is drawn from a standard Gumbel distribution.^[The standard Gumbel distribution is also known as generalized extreme value distribution type-I and has a mean of 0.577 (Euler-Masceroni constant) and a standard deviation of 1.283 ($\pi/\sqrt 6$)). Thus, when observed utility is zero in step one of the relocation decision, the probability to search is only 0.368. The probability to search is 0.5 for an observed utility of 0.367. In step two of the relocation decision, two random numbers are drawn, one for each alternative. The difference of two random variables with standard Gumbel distribution has a logistic distribution with mean zero and standard deviation 3.29 ($\pi^2/3$).] The lower $\beta_\text{Eth}$ and $\beta_\text{SES}$ are, the stronger is the impact of  unobserved utility. 
 
-We implemented the model in NetLogo [@wilenskynl] and made it freely available UPDATE LINK END.^[The model is availabel at https://github.com/RoccoPaolillo/css2019.git] 
+We implemented the model in NetLogo [@wilenskynl] and made it freely available UPDATE LINK END.^[The model is available at https://github.com/RoccoPaolillo/css2019.git] 
 The interface is shown in Figure \@ref(fig:NetLogoInterface). 
 Clicking "Load town" in the interface section "1. Load Town from GIS Data" initializes a simulation by loading the LSOA shapes of a town using NetLogo's GIS extension. The GIS data includes population data for each district. REFER TO DESCRIPTIVES SECTION ON POPULATION DATA. Summary statistics of the whole town are shown in the output window. From the population data a set of agents is created in each district. Agents are initialized with ethnicity and socio-economic status according to population data. Further on, each agent draws the threshold $\theta$ from a Beta distribution with mean $\mu_\theta$ and standard $\sigma_\theta$. These are two global parameters of the model quantifying level and dispersion of individual thresholds. Finally, the maximal population is set for each district upon initialization.^[The maximal population is set based on the *free-space* parameter which quantifies the fraction of free places compared to the initial population. The maximal population is set once for the whole population for each district and once for each socio-economic status group. The latter allows to tie houses to agents with a specific socio-economic status which is an option that can be switched on and off at runtime.]  
 The population data can be visually explored on the central map using the switches, choosers and sliders in the section "2. Explore Local Data". Several basic, segregation specific and other measures are available. Many are for speciific ethnic or socio-economic groups or both. 
@@ -308,7 +264,8 @@ The interface section "5. Outcomes Simulation vs. Empricial" shows the current d
 
 ## ABM Analysis
 
-Figure \@ref(fig:Empirical). Figure \@ref(fig:Towards). Figure \@ref(fig:Final). 
+
+Figure \@ref(fig:Empirical). 
 
 ```{r Empirical, fig.cap="Empirical Data"}
 "figs/Testing Schelling Fig 1.png" %>% 
@@ -316,11 +273,17 @@ Figure \@ref(fig:Empirical). Figure \@ref(fig:Towards). Figure \@ref(fig:Final).
   crop(right = 35, left = 30, bottom = 570, top = 20)
 ```
 
+
+Figure \@ref(fig:Towards). 
+
 ```{r Towards, fig.cap="Towards parameters which let empirical data emerge."}
 "figs/Testing Schelling Fig 2.png" %>% 
 	image_read() %>%
   crop(right = 35, left = 30, bottom = 0, top = 0)
 ```
+
+
+Figure \@ref(fig:Final). 
 
 ```{r Final, fig.cap="The final parameter configuration in detail. "}
 "figs/Testing Schelling Fig 3.png" %>% 
