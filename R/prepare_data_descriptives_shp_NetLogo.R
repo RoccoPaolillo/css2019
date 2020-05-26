@@ -36,9 +36,14 @@ lsoa_ethn <- lsoa_ethn_ses %>%
 lsoa_ses <- lsoa_ethn_ses %>% 
   group_by(lsoa11cd, town, all, all1674valid, SES) %>%  
   summarize(fraction = sum(count) / max(all1674valid), count = sum(count))
-lsoa <- lsoa_ethn_ses %>% mutate(SESnum = if_else(SES=="low", 0, if_else(SES=="mid",1,2))) %>% 
-  group_by(lsoa11cd, town, all, all1674valid) %>% 
+# lsoa <- lsoa_ethn_ses %>% mutate(SESnum = if_else(SES=="low", 0, if_else(SES=="mid",1,2))) %>% 
+  # group_by(lsoa11cd, town, all, all1674valid) %>% 
   # summarize(average_ses = sum(count * SESnum)/sum(count)) %>% 
+lsoa <- lsoa_ethn %>% 
+  group_by(lsoa11cd, town, all, all1674valid) %>% 
+  summarize(Simpson = sum(ifelse(Ethnicity == "othereth",0,fraction)^2), 
+            SimpsonOtherAsEthnicity = sum(fraction^2),
+            Entropy = sum(ifelse(Ethnicity == "othereth",0,fraction)^2)) %>% 
   group_by(town) %>% 
   mutate(fraction_lsoa = all1674valid/sum(all1674valid)) %>% group_by()
 towns_ethn_ses <- lsoa_ethn_ses %>% group_by(town, Ethnicity, SES) %>% 
