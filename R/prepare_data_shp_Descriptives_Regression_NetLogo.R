@@ -33,11 +33,14 @@
 # "segrtown_simpson2_eth" is the simpson index for all ethnicities (not grouped) but ingnoring all ethnicities 
 #     which have "other" in their name computed based on the numbers of the full town
 # "segrlsoa_fraction_ethgroupedses_asian" is the fraction of the asians (as a grouped ethnicity) on the lsoa level
+# 
+# change from 2001 to 2011:
+# The prefix "change_" marks differences of variables from 2011 with common variables from 2001, 
+# appended to the dataset 2001
 
 
 
 # data preparations
-
 library(sf)
 library(tidyverse)
 library(readxl)
@@ -46,19 +49,99 @@ library(haven)
 ## read GIS 
 shp_2001 <- read_sf(dsn ="rawdata/Lower_Layer_Super_Output_Areas__December_2001__Boundaries_EW_BGC-shp/",
                     stringsAsFactors=FALSE) %>% 
-  st_transform("+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +datum=OSGB36 +units=m +no_defs")
+  st_transform("+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +datum=OSGB36 +units=m +no_defs") %>%
+  select(-FID, -Shape__Are, -Shape__Len, -LSOA01NMW)
 shp_2011 <- read_sf(dsn ="rawdata/Lower_Layer_Super_Output_Areas__December_2011__Boundaries_EW_BGC-shp/",
                     stringsAsFactors=FALSE) %>% 
-  st_transform("+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +datum=OSGB36 +units=m +no_defs")
+  st_transform("+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +datum=OSGB36 +units=m +no_defs") %>%
+  select(-FID, -Shape__Are, -Shape__Len, -Age_Indica, -LSOA11NMW)
 
 ## read lookup tables 
 lsoa_2001_2011 <- read_csv("rawdata/Lower_Layer_Super_Output_Area__2001__to_Lower_Layer_Super_Output_Area__2011__to_Local_Authority_District__2011__Lookup_in_England_and_Wales.csv",
-                           col_types = cols(LAD11NMW = col_character() ) )
-lsoa_2001_towns_2015 <- read_csv("rawdata/Lower_Layer_Super_Output_Area__2001__to_Major_Towns_and_Cities__December_2015__Lookup_in_England_and_Wales.csv")
-lsoa_2011_towns_2015 <- read_csv("rawdata/Lower_Layer_Super_Output_Area__2011__to_Major_Towns_and_Cities__December_2015__Lookup_in_England_and_Wales.csv")
-names(lsoa_2001_2011) <- tolower(names(lsoa_2001_2011))
-names(lsoa_2001_towns_2015) <- tolower(names(lsoa_2001_towns_2015))
-names(lsoa_2011_towns_2015) <- tolower(names(lsoa_2011_towns_2015))
+                           col_types = cols(LAD11NMW = col_character() ) ) %>% 
+  select(-LAD11CD, -LAD11NM, -LAD11NMW, -FID)
+lsoa_2001_towns_2015 <- read_csv("rawdata/Lower_Layer_Super_Output_Area__2001__to_Major_Towns_and_Cities__December_2015__Lookup_in_England_and_Wales.csv") %>% 
+  select(-FID)
+lsoa_2011_towns_2015 <- read_csv("rawdata/Lower_Layer_Super_Output_Area__2011__to_Major_Towns_and_Cities__December_2015__Lookup_in_England_and_Wales.csv") %>% 
+  select(-FID)
+lookup01 <- lsoa_2001_2011 %>% left_join(lsoa_2001_towns_2015) %>% 
+  filter(!(LSOA01CD %in% c("E01016111", "E01007676", "E01010174")) & CHGIND!="X")
+lookup11 <- lsoa_2001_2011 %>% left_join(lsoa_2011_towns_2015) %>% 
+  filter(!(LSOA01CD %in% c("E01016111", "E01007676", "E01010174")) & CHGIND!="X")
+lookup <- lookup01 %>% filter(TCITY15CD == lookup11$TCITY15CD, substr(LSOA01CD,1,1)=="E")
+# It holds: lookup == lookup11 %>% filter(TCITY15CD == lookup01$TCITY15CD)
+rm(lookup01, lookup11, lsoa_2001_2011, lsoa_2001_towns_2015, lsoa_2011_towns_2015)
+
+# NOTES:
+# There are 3 LSOA which remain unchanged but which have switched the town assignment
+# In 2001
+# LSOA01CD  LSOA01NM       LSOA11CD  LSOA11NM       CHGIND TCITY15CD TCITY15NM 
+# <chr>     <chr>          <chr>     <chr>          <chr>  <chr>     <chr>     
+# 1 E01016111 Medway 015E    E01016111 Medway 015E    U      J01000037 Gillingham
+# 2 E01007676 Rotherham 025A E01007676 Rotherham 025A U      J01000079 Rotherham 
+# 3 E01010174 Solihull 013A  E01010174 Solihull 013A  U      J01000007 Birmingham 
+# In 2011
+# LSOA01CD  LSOA01NM       LSOA11CD  LSOA11NM       CHGIND TCITY15CD TCITY15NM
+# <chr>     <chr>          <chr>     <chr>          <chr>  <chr>     <chr>    
+# 1 E01016111 Medway 015E    E01016111 Medway 015E    U      J01000022 Chatham  
+# 2 E01007676 Rotherham 025A E01007676 Rotherham 025A U      J01000082 Sheffield
+# 3 E01010174 Solihull 013A  E01010174 Solihull 013A  U      J01000085 Solihull 
+# Solution: We remove these three LSOA
+# 
+# We also remove all 163 LSOA complex matchingsmarked with CHGIND=="X". 
+# Note that these are often not too complex but and could be resolved by eyeballing on maps
+# for particular towns. 
+#
+# Finally, some lookup lines show a city assignment only in one for the years 2001 and 2011
+# We include only those LSOA which are part of the town in both years. 
+
+shp <- bind_rows(
+  lookup %>% left_join(shp_2001) %>% filter(CHGIND != "M") %>% 
+    group_by(LSOA01CD, LSOA01NM, TCITY15CD, TCITY15NM) %>% 
+    mutate(LSOA11CD = paste(LSOA11CD, collapse = "_"), LSOA11NM = paste(LSOA11NM, collapse = "_"),
+           CHGIND = paste(CHGIND, collapse = "_")) %>% 
+    distinct(LSOA01CD, .keep_all = TRUE),
+  lookup %>% left_join(shp_2011) %>% filter(CHGIND == "M") %>% 
+    group_by(LSOA11CD, LSOA11NM, TCITY15CD, TCITY15NM) %>% 
+    mutate(LSOA01CD = paste(LSOA01CD, collapse = "_"), LSOA01NM = paste(LSOA01NM, collapse = "_"),
+           CHGIND = paste(CHGIND, collapse = "_")) %>% 
+    distinct(LSOA11CD, .keep_all = TRUE)
+) %>% group_by() %>% arrange(LSOA01CD) %>% st_as_sf() 
+rm(shp_2001, shp_2011)
+
+lsoa_2001 <- lookup %>% left_join(read_xlsx("rawdata/england_vars_2001_full2.xlsx",1), 
+                                  by = c("LSOA01CD" = "lsoa01cd", "LSOA01NM" = "lsoa01nm")) %>% 
+  select(-objectid, -st_areasha, -st_lengths) %>% arrange(LSOA01CD)
+lsoa_2011 <- lookup %>% left_join(read_xlsx("rawdata/ethnic_ses_2011.xlsx",1), 
+                                  by = c("LSOA11CD" = "lsoa11cd", "LSOA11NM" = "lsoa11nm")) %>% 
+  arrange(LSOA01CD)
+validLSOA01CD <- intersect(lsoa_2001 %>% filter(!is.na(total_people_01)) %>% pull(LSOA01CD),
+                           lsoa_2011 %>% filter(!is.na(all)) %>% pull(LSOA01CD))
+lsoa_2001 <- lsoa_2001 %>% filter(LSOA01CD %in% validLSOA01CD)
+lsoa_2011 <- lsoa_2011 %>% filter(LSOA01CD %in% validLSOA01CD)
+
+lsoa01 <- lsoa_2001 %>%  
+  group_by(LSOA01CD, LSOA01NM, TCITY15CD, TCITY15NM) %>% 
+  mutate(LSOA11CD = paste(LSOA11CD, collapse = "_"), LSOA11NM = paste(LSOA11NM, collapse = "_"),
+         CHGIND = paste(CHGIND, collapse = "_")) %>% 
+  group_by(LSOA01CD, LSOA01NM, TCITY15CD, TCITY15NM, LSOA11CD, LSOA11NM, CHGIND) %>% 
+  summarise_all(first) %>% 
+  group_by(LSOA11CD, LSOA11NM, TCITY15CD, TCITY15NM) %>% 
+  mutate(LSOA01CD = paste(LSOA01CD, collapse = "_"), LSOA01NM = paste(LSOA01NM, collapse = "_"),
+         CHGIND = paste(CHGIND, collapse = "_")) %>% 
+  group_by(LSOA01CD, LSOA01NM, TCITY15CD, TCITY15NM, LSOA11CD, LSOA11NM, CHGIND) %>% 
+  summarise_all(sum) %>%  group_by() %>% arrange(LSOA01CD)
+lsoa11 <- lsoa_2011 %>%  
+  group_by(LSOA11CD, LSOA11NM, TCITY15CD, TCITY15NM) %>% 
+  mutate(LSOA01CD = paste(LSOA01CD, collapse = "_"), LSOA01NM = paste(LSOA01NM, collapse = "_"),
+         CHGIND = paste(CHGIND, collapse = "_")) %>% 
+  group_by(LSOA11CD, LSOA11NM, TCITY15CD, TCITY15NM, LSOA01CD, LSOA01NM, CHGIND) %>% 
+  summarise_all(first) %>% 
+  group_by(LSOA01CD, LSOA01NM, TCITY15CD, TCITY15NM) %>% 
+  mutate(LSOA11CD = paste(LSOA11CD, collapse = "_"), LSOA11NM = paste(LSOA11NM, collapse = "_"),
+         CHGIND = paste(CHGIND, collapse = "_")) %>% 
+  group_by(LSOA11CD, LSOA11NM, TCITY15CD, TCITY15NM, LSOA01CD, LSOA01NM, CHGIND) %>% 
+  summarise_all(sum) %>%  group_by() %>% arrange(LSOA01CD)
 
 ## read data
 ethnames_01 <- c("eth_white_brit_01", "eth_white_irish_01", "eth_white_other_01", 
@@ -72,26 +155,21 @@ ethnames_11 <- c("eth_white_brit_11", "eth_white_irish_11", "eth_white_gypsy_11"
                  "eth_other_arab_11", "eth_other_other_11")
 ethgroupednames <- c("ethgrouped_whiteb","ethgrouped_asian","ethgrouped_black","ethgrouped_other")
 
-lsoa_2001 <- read_xlsx("rawdata/england_vars_2001_full2.xlsx",1) %>% 
-  left_join(select(lsoa_2001_towns_2015, lsoa01cd, tcity15nm), by = "lsoa01cd") %>% 
-  filter(!is.na(tcity15nm), !is.na(total_people_01)) %>% group_by(tcity15nm) %>% 
+lsoa01 <- lsoa01 %>% rename(all_01=total_people_01) %>% group_by(TCITY15NM) %>% 
   mutate(ethgrouped_whiteb = eth_white_brit_01,
          ethgrouped_asian = eth_asia_indian_01+eth_asia_pakistani_01+eth_asia_bangla_01+eth_asia_chi_01+eth_asia_other_01,
          ethgrouped_black = eth_black_caribbean_01+eth_black_african_01+eth_black_other_01,
          ethgrouped_other = eth_mix_africa_01+eth_mix_asia_01+eth_mix_carib_01+eth_mix_other_01+eth_other_01,
-         all_01=total_people_01, all_01_town = sum(all_01), fraction_01 = all_01/all_01_town) %>% 
-  select(lsoa01cd, lsoa01nm, tcity15nm, all_01, all_01_town, fraction_01,
-         ethgroupednames, ethnames_01, all1674_01=total_people1674_01, everything() ) %>% 
-  group_by()
-
-lsoa_2011 <- read_xlsx("rawdata/ethnic_ses_2011.xlsx",1) %>% 
-  left_join(select(lsoa_2011_towns_2015, lsoa11cd, tcity15nm), by = "lsoa11cd") %>% 
-  filter(!is.na(tcity15nm), !is.na(allpop)) %>% group_by(tcity15nm) %>% 
+         all_01_town = sum(all_01), fraction_01 = all_01/all_01_town) %>% 
+  select(LSOA01CD, LSOA01NM, TCITY15NM, all_01, all_01_town, fraction_01,
+         all_of(ethgroupednames), all_of(ethnames_01), all1674_01=total_people1674_01, everything()) %>% 
+  group_by() 
+lsoa11 <- lsoa11 %>% rename(all_11=allpop) %>% group_by(TCITY15CD) %>% 
   mutate(ethgrouped_whiteb = eth_white_brit_11,
          ethgrouped_asian = eth_asia_indian_11+eth_asia_pakistani_11+eth_asia_bangla_11+eth_asia_chi_11+eth_asia_other_11,
          ethgrouped_black = eth_black_caribbean_11+eth_black_african_11+eth_black_other_11,
          ethgrouped_other = eth_white_gypsy_11+eth_mix_africa_11+eth_mix_asia_11+eth_mix_carib_11+eth_mix_other_11+eth_other_arab_11+eth_other_other_11,
-         all_11=allpop, all_11_town = sum(all_11), fraction_11 = all_11/all_11_town,
+         all_11_town = sum(all_11), fraction_11 = all_11/all_11_town,
          ethgroupedses_whiteb_high = ses1_whiteb+ses2_whiteb, 
          ethgroupedses_whiteb_mid  = ses3_whiteb+ses4_whiteb, 
          ethgroupedses_whiteb_low  = ses5_whiteb+ses6_whiteb+ses7_whiteb,
@@ -111,135 +189,149 @@ lsoa_2011 <- read_xlsx("rawdata/ethnic_ses_2011.xlsx",1) %>%
          allvalidses_11 = ethgroupedses_whiteb+ethgroupedses_asian+ethgroupedses_black+ethgroupedses_other,
          allvalidses_11_town = sum(allvalidses_11),
          fractionvalidses_11 = allvalidses_11/allvalidses_11_town) %>%
-  select(lsoa11cd, lsoa11nm, tcity15nm, all_11, all_11_town, fraction_11,
+  select(LSOA11CD, LSOA11NM, TCITY15NM, all_11_town, fraction_11,
          allvalidses_11, allvalidses_11_town, fractionvalidses_11,
-         ethgroupednames, ethnames_11, everything() ) %>% 
+         all_of(ethgroupednames), all_of(ethnames_11), everything() ) %>% 
   group_by()
 
 ## segregation indices towns
-towns_2001 <- lsoa_2001 %>% select(-lsoa01cd,-lsoa01nm,-all_01_town,-fraction_01) %>% 
-  group_by(tcity15nm) %>% summarize_all(sum) %>% group_by()
-segr_towns_2001 <- towns_2001 %>% select(tcity15nm, all_01, c(contains("ethgrouped_"),contains("eth_"))) %>% 
+towns01 <- lsoa01 %>% select(-LSOA01CD,-LSOA01NM,-all_01_town,-fraction_01,-LSOA11CD,-LSOA11NM,-CHGIND, -TCITY15CD) %>% 
+  group_by(TCITY15NM) %>% summarize_all(sum) %>% group_by()
+segr_towns01 <- towns01 %>% select(TCITY15NM, all_01, c(contains("ethgrouped_"),contains("eth_"))) %>% 
   pivot_longer(c(contains("ethgrouped_"),contains("eth_")), names_to = "ethnicity", values_to = "count") %>% 
   mutate(ethnicgrouping = word(ethnicity,1,sep="_"), ethnicity = word(ethnicity,2,-1,sep="_")) %>% 
-  group_by(tcity15nm, ethnicgrouping) %>% 
+  group_by(TCITY15NM, ethnicgrouping) %>% 
   mutate(segrtown_fraction = count/all_01, segrtown_simpson = sum(segrtown_fraction^2), 
          segrtown_simpson2 = sum((if_else(str_detect(ethnicity,"other"),0,1)*segrtown_fraction)^2)) %>% 
   group_by() %>% 
   select(-count, -all_01)
-towns_2001 <- segr_towns_2001 %>% select(tcity15nm, ethnicgrouping, ethnicity, segrtown_fraction) %>% 
+towns01 <- segr_towns01 %>% select(TCITY15NM, ethnicgrouping, ethnicity, segrtown_fraction) %>% 
   pivot_wider(names_from = c(ethnicgrouping, ethnicity), values_from=segrtown_fraction, names_prefix="segrtown_fraction_") %>% 
-  right_join(towns_2001, by = "tcity15nm")
-towns_2001 <- segr_towns_2001 %>% select(tcity15nm, ethnicgrouping, contains("simpson")) %>% distinct() %>% 
+  right_join(towns01, by = "TCITY15NM")
+towns01 <- segr_towns01 %>% select(TCITY15NM, ethnicgrouping, contains("simpson")) %>% distinct() %>% 
   pivot_wider(names_from = ethnicgrouping, values_from=c(segrtown_simpson, segrtown_simpson2)) %>% 
-  right_join(towns_2001, by = "tcity15nm")
+  right_join(towns01, by = "TCITY15NM")
 
-towns_2011 <- lsoa_2011 %>% select(-lsoa11cd,-lsoa11nm,-all_11_town,-fraction_11,-allvalidses_11_town,-fractionvalidses_11,
-                                   -ethgroupedses_whiteb_high, -ethgroupedses_whiteb_mid, -ethgroupedses_whiteb_low, 
-                                   -ethgroupedses_asian_high, -ethgroupedses_asian_mid, -ethgroupedses_asian_low,
-                                   -ethgroupedses_black_high, -ethgroupedses_black_mid, -ethgroupedses_black_low,
-                                   -ethgroupedses_other_high, -ethgroupedses_other_mid, -ethgroupedses_other_low) %>% 
-  group_by(tcity15nm) %>% summarize_all(sum) %>% group_by()
-segr_towns_2011 <- towns_2011 %>% select(tcity15nm, all_11, allvalidses_11,
-                                         c(contains("ethgroupedses_"),contains("ethgrouped_"),contains("eth_"))) %>% 
+towns11 <- lsoa11 %>% select(-LSOA11CD,-LSOA11NM,-LSOA01CD,-LSOA01NM, -CHGIND, -TCITY15CD,
+                             -all_11_town,-fraction_11,-allvalidses_11_town,-fractionvalidses_11,
+                             -ethgroupedses_whiteb_high, -ethgroupedses_whiteb_mid, -ethgroupedses_whiteb_low, 
+                             -ethgroupedses_asian_high, -ethgroupedses_asian_mid, -ethgroupedses_asian_low,
+                             -ethgroupedses_black_high, -ethgroupedses_black_mid, -ethgroupedses_black_low,
+                             -ethgroupedses_other_high, -ethgroupedses_other_mid, -ethgroupedses_other_low) %>% 
+  group_by(TCITY15NM) %>% summarize_all(sum) %>% group_by()
+segr_towns11 <- towns11 %>% select(TCITY15NM, all_11, allvalidses_11,
+                                   c(contains("ethgroupedses_"),contains("ethgrouped_"),contains("eth_"))) %>% 
   pivot_longer(c(contains("ethgroupedses_"),contains("ethgrouped_"),contains("eth_")), 
                names_to = "ethnicity", values_to = "count") %>% 
   mutate(ethnicgrouping = word(ethnicity,1,sep="_"), ethnicity = word(ethnicity,2,-1,sep="_")) %>% 
-  group_by(tcity15nm, ethnicgrouping) %>% 
+  group_by(TCITY15NM, ethnicgrouping) %>% 
   mutate(segrtown_fraction = count/if_else(ethnicgrouping=="ethgroupedses",allvalidses_11,all_11), 
          segrtown_simpson = sum(segrtown_fraction^2), 
          segrtown_simpson2 = sum((if_else(str_detect(ethnicity,"other"),0,1)*segrtown_fraction)^2)) %>% 
   group_by() %>% 
   select(-count, -all_11, -allvalidses_11)
-towns_2011 <- segr_towns_2011 %>% select(tcity15nm, ethnicgrouping, ethnicity, segrtown_fraction) %>% 
+towns11 <- segr_towns11 %>% select(TCITY15NM, ethnicgrouping, ethnicity, segrtown_fraction) %>% 
   pivot_wider(names_from = c(ethnicgrouping, ethnicity), values_from=segrtown_fraction, names_prefix="segrtown_fraction_") %>% 
-  right_join(towns_2011, by = "tcity15nm")
-towns_2011 <- segr_towns_2011 %>% select(tcity15nm, ethnicgrouping, contains("simpson")) %>% distinct() %>% 
+  right_join(towns11, by = "TCITY15NM")
+towns11 <- segr_towns11 %>% select(TCITY15NM, ethnicgrouping, contains("simpson")) %>% distinct() %>% 
   pivot_wider(names_from = ethnicgrouping, values_from=c(segrtown_simpson, segrtown_simpson2)) %>% 
-  right_join(towns_2011, by = "tcity15nm")
+  right_join(towns11, by = "TCITY15NM")
 
 # segregation indices lsoa
-segr_lsoa_2001 <- lsoa_2001 %>% select(lsoa01cd, lsoa01nm, tcity15nm, all_01, c(contains("ethgrouped_"),contains("eth_"))) %>% 
+segr_lsoa01 <- lsoa01 %>% 
+  select(LSOA01CD, LSOA01NM, TCITY15NM, all_01, c(contains("ethgrouped_"),contains("eth_"))) %>% 
   pivot_longer(c(contains("ethgrouped_"),contains("eth_")), names_to = "ethnicity", values_to = "count") %>% 
   mutate(ethnicgrouping = word(ethnicity,1,sep="_"), ethnicity = word(ethnicity,2,-1,sep="_")) %>% 
-  group_by(lsoa01cd, ethnicgrouping) %>% 
+  group_by(LSOA01CD, ethnicgrouping) %>% 
   mutate(segrlsoa_fraction = count/all_01, segrlsoa_simpson = sum(segrlsoa_fraction^2), 
          segrlsoa_simpson2 = sum((if_else(str_detect(ethnicity,"other"),0,1)*segrlsoa_fraction)^2)) %>% 
   group_by() %>% 
   select(-count, -all_01)
-lsoa_2001 <- segr_lsoa_2001 %>% select(lsoa01cd, lsoa01nm, tcity15nm, ethnicgrouping, ethnicity, segrlsoa_fraction) %>% 
+lsoa01 <- segr_lsoa01 %>% select(LSOA01CD, LSOA01NM, TCITY15NM, ethnicgrouping, ethnicity, segrlsoa_fraction) %>% 
   pivot_wider(names_from = c(ethnicgrouping, ethnicity), values_from=segrlsoa_fraction, names_prefix="segrlsoa_fraction_") %>% 
-  right_join(lsoa_2001, by = c("lsoa01cd","lsoa01nm","tcity15nm"))
-lsoa_2001 <- segr_lsoa_2001 %>% select(lsoa01cd, lsoa01nm, tcity15nm, ethnicgrouping, contains("simpson")) %>% distinct() %>% 
+  right_join(lsoa01, by = c("LSOA01CD","LSOA01NM","TCITY15NM"))
+lsoa01 <- segr_lsoa01 %>% select(LSOA01CD, LSOA01NM, TCITY15NM, ethnicgrouping, contains("simpson")) %>% distinct() %>% 
   pivot_wider(names_from = ethnicgrouping, values_from=c(segrlsoa_simpson, segrlsoa_simpson2)) %>% 
-  right_join(lsoa_2001, by = c("lsoa01cd","lsoa01nm","tcity15nm"))
+  right_join(lsoa01, by = c("LSOA01CD","LSOA01NM","TCITY15NM"))
 
-segr_lsoa_2011 <- lsoa_2011 %>% select(lsoa11cd, lsoa11nm, tcity15nm, all_11, allvalidses_11, 
-                                       c(contains("ethgroupedses_"),contains("ethgrouped_"),contains("eth_")),
-                                       -ethgroupedses_whiteb_high, -ethgroupedses_whiteb_mid, -ethgroupedses_whiteb_low, 
-                                       -ethgroupedses_asian_high, -ethgroupedses_asian_mid, -ethgroupedses_asian_low,
-                                       -ethgroupedses_black_high, -ethgroupedses_black_mid, -ethgroupedses_black_low,
-                                       -ethgroupedses_other_high, -ethgroupedses_other_mid, -ethgroupedses_other_low) %>% 
+segr_lsoa11 <- lsoa11 %>% select(LSOA11CD, LSOA11NM, TCITY15NM, all_11, allvalidses_11, 
+                                    c(contains("ethgroupedses_"),contains("ethgrouped_"),contains("eth_")),
+                                    -ethgroupedses_whiteb_high, -ethgroupedses_whiteb_mid, -ethgroupedses_whiteb_low, 
+                                    -ethgroupedses_asian_high, -ethgroupedses_asian_mid, -ethgroupedses_asian_low,
+                                    -ethgroupedses_black_high, -ethgroupedses_black_mid, -ethgroupedses_black_low,
+                                    -ethgroupedses_other_high, -ethgroupedses_other_mid, -ethgroupedses_other_low) %>% 
   pivot_longer(c(contains("ethgroupedses_"),contains("ethgrouped_"),contains("eth_")), 
                names_to = "ethnicity", values_to = "count") %>% 
   mutate(ethnicgrouping = word(ethnicity,1,sep="_"), ethnicity = word(ethnicity,2,-1,sep="_")) %>% 
-  group_by(lsoa11cd, ethnicgrouping) %>% 
+  group_by(LSOA11CD, ethnicgrouping) %>% 
   mutate(segrlsoa_fraction = count/if_else(ethnicgrouping=="ethgroupedses",allvalidses_11,all_11),
          segrlsoa_simpson = sum(segrlsoa_fraction^2), 
          segrlsoa_simpson2 = sum((if_else(str_detect(ethnicity,"other"),0,1)*segrlsoa_fraction)^2)) %>% 
   group_by() %>% 
   select(-count, -all_11, -allvalidses_11)
-lsoa_2011 <- segr_lsoa_2011 %>% select(lsoa11cd, lsoa11nm, tcity15nm, ethnicgrouping, ethnicity, segrlsoa_fraction) %>% 
+lsoa11 <- segr_lsoa11 %>% select(LSOA11CD, LSOA11NM, TCITY15NM, ethnicgrouping, ethnicity, segrlsoa_fraction) %>% 
   pivot_wider(names_from = c(ethnicgrouping, ethnicity), values_from=segrlsoa_fraction, names_prefix="segrlsoa_fraction_") %>% 
-  right_join(lsoa_2011, by = c("lsoa11cd","lsoa11nm","tcity15nm"))
-lsoa_2011 <- segr_lsoa_2011 %>% select(lsoa11cd, lsoa11nm, tcity15nm, ethnicgrouping, contains("simpson")) %>% distinct() %>% 
+  right_join(lsoa11, by = c("LSOA11CD","LSOA11NM","TCITY15NM"))
+lsoa11 <- segr_lsoa11 %>% select(LSOA11CD, LSOA11NM, TCITY15NM, ethnicgrouping, contains("simpson")) %>% distinct() %>% 
   pivot_wider(names_from = ethnicgrouping, values_from=c(segrlsoa_simpson, segrlsoa_simpson2)) %>% 
-  right_join(lsoa_2011, by = c("lsoa11cd","lsoa11nm","tcity15nm"))
+  right_join(lsoa11, by = c("LSOA11CD","LSOA11NM","TCITY15NM"))
+rm(segr_lsoa01, segr_lsoa11, segr_towns01, segr_towns11, lsoa_2001, lsoa_2011)
 
 # final lsoa dataset
-lsoa_2001 <- lsoa_2001 %>% select(lsoa01cd, lsoa01nm, tcity15nm) %>% 
-  right_join(select(towns_2001, tcity15nm, contains("segr")), by = "tcity15nm") %>% 
-  right_join(lsoa_2001, by = c("lsoa01cd", "lsoa01nm", "tcity15nm")) %>% 
-  left_join(select(shp_2001,LSOA01CD,Shape__Are,Shape__Len,geometry), by = c("lsoa01cd" = "LSOA01CD"))
-lsoa_2011 <- lsoa_2011 %>% select(lsoa11cd, lsoa11nm, tcity15nm) %>% 
-  right_join(select(towns_2011, tcity15nm, contains("segr")), by = "tcity15nm") %>% 
-  right_join(lsoa_2011, by = c("lsoa11cd", "lsoa11nm", "tcity15nm")) %>% 
-  left_join(select(shp_2011,LSOA11CD,Shape__Are,Shape__Len,geometry), by = c("lsoa11cd" = "LSOA11CD"))
+lsoa_2001 <- shp %>% right_join(lsoa01) 
+lsoa_2011 <- shp %>% right_join(lsoa11) 
+lsoa <- bind_rows(
+  lsoa_2001 %>% select(LSOA01CD, LSOA01NM, LSOA11CD, LSOA11NM, CHGIND, TCITY15CD, TCITY15NM, 
+                           starts_with("segrlsoa_simpson"), starts_with("segrlsoa_fraction_ethgrouped_")) %>% 
+    mutate(year = 2001),
+  lsoa_2011 %>% select(LSOA01CD, LSOA01NM, LSOA11CD, LSOA11NM, CHGIND, TCITY15CD, TCITY15NM, 
+                           starts_with("segrlsoa_simpson"), starts_with("segrlsoa_fraction_ethgrouped_"), 
+                           -segrlsoa_simpson_ethgroupedses, -segrlsoa_simpson2_ethgroupedses) %>% 
+    mutate(year = 2011)
+)
+lsoa_2001 <- lsoa %>% as_tibble() %>% 
+  pivot_wider(id_cols = c(LSOA01CD, LSOA01NM, LSOA11CD, LSOA11NM, CHGIND, TCITY15CD, TCITY15NM, geometry), 
+              names_from = year, values_from = starts_with("segr")) %>% 
+  transmute(LSOA01CD, LSOA01NM, LSOA11CD, LSOA11NM, CHGIND, TCITY15CD, TCITY15NM,
+            change_segrlsoa_simpson_ethgrouped = segrlsoa_simpson_ethgrouped_2011 - segrlsoa_simpson_ethgrouped_2001,
+            change_segrlsoa_simpson_eth = segrlsoa_simpson_eth_2011 - segrlsoa_simpson_eth_2001,
+            change_segrlsoa_simpson2_ethgrouped = segrlsoa_simpson2_ethgrouped_2011 - segrlsoa_simpson2_ethgrouped_2001,
+            change_segrlsoa_simpson2_eth = segrlsoa_simpson2_eth_2011 - segrlsoa_simpson2_eth_2001,
+            change_segrlsoa_fraction_ethgrouped_whiteb = segrlsoa_fraction_ethgrouped_whiteb_2011 - segrlsoa_fraction_ethgrouped_whiteb_2001,
+            change_segrlsoa_fraction_ethgrouped_asian = segrlsoa_fraction_ethgrouped_asian_2011 - segrlsoa_fraction_ethgrouped_asian_2001,
+            change_segrlsoa_fraction_ethgrouped_black = segrlsoa_fraction_ethgrouped_black_2011 - segrlsoa_fraction_ethgrouped_black_2001,
+            change_segrlsoa_fraction_ethgrouped_other = segrlsoa_fraction_ethgrouped_other_2011 - segrlsoa_fraction_ethgrouped_other_2001
+  ) %>% 
+  right_join(lsoa_2001) %>% st_as_sf()
 save(lsoa_2001,lsoa_2011,file = "R/lsoa_2001_lsoa_2011")
 
 # Bradford
-bradford_2001 <- lsoa_2001 %>% filter(tcity15nm == "Bradford")
-bradford_2011 <- lsoa_2011 %>% filter(tcity15nm == "Bradford")
+bradford_2001 <- lsoa_2001 %>% filter(TCITY15NM == "Bradford")
+bradford_2011 <- lsoa_2011 %>% filter(TCITY15NM == "Bradford")
 save(bradford_2001,bradford_2011,file = "R/bradford_2001_2011")
 
+## export LSOA of some towns including raw data to ESRI shapefile readable with NetLogo GIS extension
+for (TOWN in c("Southampton","Leeds", "Bradford", "Leicester", "London", "Manchester", "Birmingham", "Brighton and Hove",
+               "Kingston upon Hull", "Stoke-on-Trent", "Plymouth", "Derby", "Nottingham", "Newcastle upon Tyne","Leeds", "Sheffield",
+               "Coventry", "St Albans" , "Guildford", "Cambridge", "Middlesbrough", "Sunderland", "Oxford","Luton",
+               "Blackburn", "Oldham","Wolverhampton","Slough","Walsall","Bristol", "Liverpool", "Leeds", "Reading")) {
+  if (!dir.exists(paste0("shp_NetLogo/",TOWN))) {
+    town <- lsoa_2011 %>% filter(TCITY15NM == TOWN) %>%
+      select(LSOA11CD, allvalidses_11, starts_with("ethgroupedses_"), 
+             -ethgroupedses_whiteb, -ethgroupedses_asian, -ethgroupedses_black, -ethgroupedses_other)
+    names(town) <- sub("ethgroupedses_","",names(town))
+    town %>% st_write(dsn = paste0("shp_NetLogo/",TOWN), layer = TOWN, driver = "ESRI Shapefile", delete_dsn = TRUE)
+}}
 
-# 
-# common <- intersect(bradford_2001$lsoa01cd, bradford_2011$lsoa11cd)
-# bradford_2001 %>% filter(lsoa01cd %in% common)
-# bradford_2001 %>% filter(lsoa01cd %in% common) %>% 
-#   ggplot(aes(geometry = geometry)) + geom_sf(aes(fill = segrlsoa_simpson_ethgrouped))
-# bradford_2011 %>% filter(lsoa11cd %in% common) %>% 
-#   ggplot(aes(geometry = geometry)) + geom_sf(aes(fill = segrlsoa_simpson_ethgrouped))
-# cf <- bradford_2011 %>% left_join(lsoa_2001_2011) %>% select(lsoa11cd, lsoa01cd, chgind) %>% mutate(check=lsoa11cd==lsoa01cd)
-# 
-# 
-# 
-# ## export LSOA of some towns including raw data to ESRI shapefile readable with NetLogo GIS extension
-# for (TOWN in c("Southampton","Leeds", "Bradford", "Leicester", "London", "Manchester", "Birmingham", "Brighton and Hove", 
-#                "Kingston upon Hull", "Stoke-on-Trent", "Plymouth", "Derby", "Nottingham", "Newcastle upon Tyne","Leeds", "Sheffield",
-#                "Coventry", "St Albans" , "Guildford", "Cambridge", "Middlesbrough", "Sunderland", "Oxford","Luton",
-#                "Blackburn", "Oldham","Wolverhampton","Slough","Walsall","Bristol", "Liverpool", "Leeds", "Reading")) {
-#   if (!dir.exists(paste0("shp_NetLogo/",TOWN))) shp_2011 %>% filter(tcity15nm == TOWN) %>%
-#     st_write(dsn = paste0("shp_NetLogo/",TOWN), layer = TOWN, driver = "ESRI Shapefile", delete_dsn = TRUE)
-# }
-# 
+
+
 # # Dissimilarity, Location Quotient
 # lsoa_ethn <- lsoa_ethn %>% left_join(select(towns_ethn, town, Ethnicity, fraction_ethnicity_town = fraction),
 #                                      by = c("town", "Ethnicity")) %>% 
-#   group_by(lsoa11cd) %>% mutate(Dissimilarity = abs(fraction - fraction_ethnicity_town) / 
+#   group_by(LSOA11CD) %>% mutate(Dissimilarity = abs(fraction - fraction_ethnicity_town) / 
 #                                   (2*fraction_ethnicity_town*(1-fraction_ethnicity_town)),
 #                                 Location_Quotient = fraction/fraction_ethnicity_town) 
-# towns_ethn <- lsoa_ethn %>% left_join(select(lsoa,town,lsoa11cd,fraction_lsoa), c("lsoa11cd", "town")) %>%
+# towns_ethn <- lsoa_ethn %>% left_join(select(lsoa,town,LSOA11CD,fraction_lsoa), c("LSOA11CD", "town")) %>%
 #   group_by(town,Ethnicity) %>% 
 #   summarize(Dissimilarity_Index = sum(fraction_lsoa * Dissimilarity)) %>% 
 #   right_join(towns_ethn, c("town", "Ethnicity")) %>% group_by()
@@ -248,8 +340,8 @@ save(bradford_2001,bradford_2011,file = "R/bradford_2001_2011")
 #             Entropy_town = -1/log(4)*sum(fraction*log(fraction))) %>% 
 #   right_join(towns, by = "town")
 # towns <- lsoa_ethn %>% left_join(rename(towns, count_town=count), by = "town") %>% 
-#   left_join(select(lsoa,town,lsoa11cd,fraction_lsoa), c("lsoa11cd", "town")) %>% 
-#   group_by(lsoa11cd, town, fraction_lsoa, Simpson_town, Entropy_town) %>%
+#   left_join(select(lsoa,town,LSOA11CD,fraction_lsoa), c("LSOA11CD", "town")) %>% 
+#   group_by(LSOA11CD, town, fraction_lsoa, Simpson_town, Entropy_town) %>%
 #   summarize(Simpson = sum(fraction^2), 
 #             Entropy = -1/log(4)*sum(fraction*
 #                                       if_else(fraction == 0, 0, log(fraction)))) %>% 
@@ -259,14 +351,3 @@ save(bradford_2001,bradford_2011,file = "R/bradford_2001_2011")
 #                                Avg_Entropy = sum(fraction_lsoa*Entropy),
 #                                Avg_Loss_Entropy = sum(fraction_lsoa*Loss_Entropy)) %>% 
 #   right_join(towns, by = "town")
-# 
-# save(lsoa, lsoa_ethn, lsoa_ethn_ses, lsoa_ses, towns, towns_ethn, towns_ethn_ses, towns_ses, file = "R/lsoa_towns")
-# write_dta(lsoa, "stata/lsoa.dta")
-# write_dta(lsoa_ethn, "stata/lsoa_ethn.dta")
-# write_dta(lsoa_ethn_ses, "stata/lsoa_ethn_ses.dta")
-# #write_dta(lsoa_ses, "stata/lsoa_ses.dta")
-# write_dta(towns, "stata/towns.dta")
-# write_dta(towns_ethn, "stata/towns_ethn.dta")
-# write_dta(towns_ethn_ses, "stata/towns_ethn_ses.dta")
-# #write_dta(towns_ses, "stata/towns_ses.dta")
-# 

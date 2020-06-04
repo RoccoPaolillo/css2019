@@ -17,11 +17,15 @@ staticempiricals-own [ id popdata ethnicity-counts ses-counts totalpop maxpop se
 
 ;; SETUP PROCEDURES
 
+;"WHTB_HG":"103.0"]["BLCK_LW":"11.0"]["OTHR_MD":"12.0"]["ASN_HGH":"13.0"]["WHTB_MD":"61.0"]["OTHR_HG":"34.0"]["WHTB_LW":"108.0"]["ASIN_LW":"12.0"]["BLCK_HG":"5.0"]["ALLV_11":"399.0"]["LSOA01C":"E01017137"]["BLCK_MD":"4.0"]["OTHR_LW":"33.0"]["ASIN_MD":"3.0"]}}
+
+
 to setup
   clear-all
   ask patches [set pcolor 68]
   load-gisdataset
-  let vars [ "WHTB_HG" "WHTB_MD" "WHTB_LW" "ASN_HGH" "ASIN_MD" "ASIN_LW" "BLCK_HG" "BLCK_MD" "BLCK_LW" "OTHRTH_H" "OTHRTH_M" "OTHRTH_L" ]
+  let vars [ "WHTB_HG" "WHTB_MD" "WHTB_LW" "ASN_HGH" "ASIN_MD" "ASIN_LW" "BLCK_HG" "BLCK_MD" "BLCK_LW" "OTHR_HG" "OTHR_MD" "OTHR_LW" ]
+;  let vars [ "WHTB_HG" "WHTB_MD" "WHTB_LW" "ASN_HGH" "ASIN_MD" "ASIN_LW" "BLCK_HG" "BLCK_MD" "BLCK_LW" "OTHRTH_H" "OTHRTH_M" "OTHRTH_L" ]
   set ethnicities [ "WHITEB" "ASIAN" "BLACK" "OTHER" ]
   set sess [ "LOW" "MID" "HIGH" ]
   foreach gis:feature-list-of townshp [ x ->
@@ -190,7 +194,7 @@ end
 
 to print-town-data
   clear-output
-  let all1674 (map [x -> gis:property-value x "ALL1674"] gis:feature-list-of townshp)
+  let all1674 (map [x -> gis:property-value x "ALLV_11"] gis:feature-list-of townshp)
   output-print (word town ": demographic data used")
   output-print (word "Pop 16-74 with regular SES: " (sum all1674))
   output-print (word "Districts (LSOA): " (length all1674))
@@ -429,7 +433,7 @@ SWITCH
 124
 show-labels
 show-labels
-0
+1
 1
 -1000
 
@@ -554,7 +558,7 @@ SWITCH
 337
 tie-houses-to-ses
 tie-houses-to-ses
-1
+0
 1
 -1000
 
@@ -607,7 +611,7 @@ threshold-sd
 threshold-sd
 0
 0.3
-0.0
+0.1
 0.01
 1
 NIL
@@ -811,7 +815,7 @@ color-axis-max
 color-axis-max
 0.3
 8
-6.2
+1.0
 0.1
 1
 NIL
@@ -841,7 +845,7 @@ beta-eth
 beta-eth
 0
 100
-12.0
+6.0
 0.1
 1
 NIL
@@ -856,7 +860,7 @@ beta-ses
 beta-ses
 0
 60
-0.0
+12.0
 0.1
 1
 NIL
@@ -894,7 +898,7 @@ INPUTBOX
 1575
 96
 stop-tick
-10000.0
+500.0
 1
 0
 Number
