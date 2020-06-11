@@ -275,10 +275,14 @@ to-report location-quotient [ethn-ind] report (item ethn-ind ethnicity-counts / 
 to-report interaction [dists ethn-ind1 ethn-ind2] report ifelse-value (interaction-within = "all") [interaction-all districts ethn-ind1 ethn-ind2] [interaction-ses districts (position interaction-within sess) ethn-ind1 ethn-ind2] end
 to-report interaction-all [dists ethn-ind1 ethn-ind2] report sum [ (item ethn-ind1 ethnicity-counts / item ethn-ind1 town-ethnicity-counts) * (item ethn-ind2 ethnicity-counts / totalpop) ] of dists end
 to-report interaction-ses [dists ses-ind ethn-ind1 ethn-ind2 ] report sum [ ((item ses-ind item ethn-ind1 popdata) / (item ses-ind item ethn-ind1 town-popdata)) * ((item ethn-ind2 ethnicity-counts) / totalpop) ] of dists end
+to-report moran-I-backup [dists]
+  let m mean [value-for-monitoring self] of dists
+  report (count dists / (sum [count link-neighbors] of dists)) *
+         ((sum [sum [(value-for-monitoring self - m) * (value-for-monitoring myself - m)] of link-neighbors] of dists) / sum [(value-for-monitoring self - m) ^ 2] of dists)
+end
 to-report moran-I [dists]
   let m mean [value-for-monitoring self] of dists
-  report (count dists / sum [count link-neighbors] of dists) *
-         (sum [sum [(value-for-monitoring self - m)  * (value-for-monitoring myself - m)] of link-neighbors] of dists) / sum [(value-for-monitoring self - m) ^ 2] of dists
+  report ((sum [sum [(1 / count link-neighbors) * (value-for-monitoring self - m) * (value-for-monitoring myself - m)] of link-neighbors] of dists) / sum [(value-for-monitoring self - m) ^ 2] of dists)
 end
 
 ;; GENERAL REPORTERS
@@ -463,7 +467,7 @@ scale-down-pop
 scale-down-pop
 1
 20
-10.0
+1.0
 1
 1
 NIL
@@ -570,7 +574,7 @@ CHOOSER
 data-source
 data-source
 "empirical (static)" "simulation (dynamic)"
-1
+0
 
 PLOT
 1092
@@ -598,7 +602,7 @@ SWITCH
 93
 show-links
 show-links
-1
+0
 1
 -1000
 
@@ -654,7 +658,7 @@ CHOOSER
 ethnicity
 ethnicity
 "WHITEB" "ASIAN" "BLACK" "OTHER"
-1
+2
 
 CHOOSER
 425
@@ -664,7 +668,7 @@ CHOOSER
 ses
 ses
 "LOW" "MID" "HIGH"
-0
+2
 
 CHOOSER
 318

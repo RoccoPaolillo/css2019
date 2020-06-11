@@ -304,11 +304,16 @@ lsoa_2001 <- lsoa %>% as_tibble() %>%
   ) %>% 
   right_join(lsoa_2001) %>% st_as_sf()
 save(lsoa_2001,lsoa_2011,file = "R/lsoa_2001_lsoa_2011")
+lsoa_2001 %>% as_tibble() %>% select(-geometry) %>% write_csv("R/lsoa_2001.csv")
+lsoa_2011 %>% as_tibble() %>% select(-geometry) %>% write_csv("R/lsoa_2011.csv")
 
 # Bradford
 bradford_2001 <- lsoa_2001 %>% filter(TCITY15NM == "Bradford")
 bradford_2011 <- lsoa_2011 %>% filter(TCITY15NM == "Bradford")
 save(bradford_2001,bradford_2011,file = "R/bradford_2001_2011")
+write_csv(bradford_2001, "R/bradford_2001.csv")
+write_csv(bradford_2011, "R/bradford_2011.csv")
+
 
 ## export LSOA of some towns including raw data to ESRI shapefile readable with NetLogo GIS extension
 for (TOWN in c("Southampton","Leeds", "Bradford", "Leicester", "London", "Manchester", "Birmingham", "Brighton and Hove",
@@ -351,3 +356,20 @@ for (TOWN in c("Southampton","Leeds", "Bradford", "Leicester", "London", "Manche
 #                                Avg_Entropy = sum(fraction_lsoa*Entropy),
 #                                Avg_Loss_Entropy = sum(fraction_lsoa*Loss_Entropy)) %>% 
 #   right_join(towns, by = "town")
+
+
+load("R/bradford_2001_2011")
+
+bradford_2001 %>% ggplot(aes(fill = change_segrlsoa_simpson2_ethgrouped)) + geom_sf()
+bradford_2001 %>% ggplot(aes(fill = change_segrlsoa_fraction_ethgrouped_asian)) + geom_sf()
+bradford_2001 %>% ggplot(aes(fill = segrlsoa_simpson2_ethgrouped)) + geom_sf()
+bradford_2001 %>% ggplot(aes(fill = segrlsoa_fraction_ethgrouped_asian)) + geom_sf()
+
+glm(change_segrlsoa_fraction_ethgrouped_asian ~ tenure_owned_01, data = bradford_2001)
+
+
+bradford_2001 %>% mutate(id=1:n()) %>% 
+  ggplot(aes(fill = change_segrlsoa_simpson2_ethgrouped, label = id)) + geom_sf() + 
+  geom_sf_text()
+
+a <- st_intersects(bradford_2001)
