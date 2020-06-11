@@ -358,18 +358,18 @@ for (TOWN in c("Southampton","Leeds", "Bradford", "Leicester", "London", "Manche
 #   right_join(towns, by = "town")
 
 
-load("R/bradford_2001_2011")
-
-bradford_2001 %>% ggplot(aes(fill = change_segrlsoa_simpson2_ethgrouped)) + geom_sf()
-bradford_2001 %>% ggplot(aes(fill = change_segrlsoa_fraction_ethgrouped_asian)) + geom_sf()
-bradford_2001 %>% ggplot(aes(fill = segrlsoa_simpson2_ethgrouped)) + geom_sf()
-bradford_2001 %>% ggplot(aes(fill = segrlsoa_fraction_ethgrouped_asian)) + geom_sf()
-
-glm(change_segrlsoa_fraction_ethgrouped_asian ~ tenure_owned_01, data = bradford_2001)
-
-
-bradford_2001 %>% mutate(id=1:n()) %>% 
-  ggplot(aes(fill = change_segrlsoa_simpson2_ethgrouped, label = id)) + geom_sf() + 
-  geom_sf_text()
-
-a <- st_intersects(bradford_2001)
+# load("R/bradford_2001_2011")
+# 
+# bradford_2001 %>% ggplot(aes(fill = change_segrlsoa_simpson2_ethgrouped)) + geom_sf()
+# bradford_2001 %>% ggplot(aes(fill = change_segrlsoa_fraction_ethgrouped_asian)) + geom_sf()
+# bradford_2001 %>% ggplot(aes(fill = segrlsoa_simpson2_ethgrouped)) + geom_sf()
+# bradford_2001 %>% ggplot(aes(fill = segrlsoa_fraction_ethgrouped_asian)) + geom_sf()
+# 
+# glm(change_segrlsoa_fraction_ethgrouped_asian ~ tenure_owned_01, data = bradford_2001)
+# 
+# 
+# bradford_2001 %>% mutate(id=1:n()) %>% 
+#   ggplot(aes(fill = change_segrlsoa_simpson2_ethgrouped, label = id)) + geom_sf() + 
+#   geom_sf_text()
+# 
+# a <- st_intersects(bradford_2001)
