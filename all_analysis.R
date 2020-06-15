@@ -131,7 +131,7 @@ frml2 <- segrlsoa_fraction_ethgrouped_asian ~
   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
 
-frml2_ch <- change_segrlsoa_fraction_ethgrouped_asian ~ 
+  frml2_ch <- change_segrlsoa_fraction_ethgrouped_asian ~ 
   change_price_00_gr +
   housdepri_4d_01_p + 
   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
@@ -226,9 +226,9 @@ spmoran2_ch <- moran.mc(x=resid.lagsarlm.mod2_ch, listw=W.list_bradford, nsim=10
 spmoran3    <- moran.mc(x=resid.lagsarlm.mod3,    listw=W.list_bradford, nsim=10000)
 spmoran4    <- moran.mc(x=resid.lagsarlm.mod4,    listw=W.list_bradford, nsim=10000)
 spmoran4_ch <- moran.mc(x=resid.lagsarlm.mod4_ch, listw=W.list_bradford, nsim=10000)
-spmoran1_ch.test <- moran.test(x=resid.lagsarlm.mod1_ch, listw=W.list_bradford)
-spmoran2_ch.test <- moran.test(x=resid.lagsarlm.mod2_ch, listw=W.list_bradford)
-spmoran4_ch.test <- moran.test(x=resid.lagsarlm.mod4_ch, listw=W.list_bradford)
+# spmoran1_ch.test <- moran.test(x=resid.lagsarlm.mod1_ch, listw=W.list_bradford)
+# spmoran2_ch.test <- moran.test(x=resid.lagsarlm.mod2_ch, listw=W.list_bradford)
+# spmoran4_ch.test <- moran.test(x=resid.lagsarlm.mod4_ch, listw=W.list_bradford)
 
 moransI_new <-
   data.frame(
