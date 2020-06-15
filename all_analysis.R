@@ -265,21 +265,6 @@ spmoransI_new_ch <-
 saveRDS(moransI_new, file="moransI_new.RDS")
 
 
-spmoransI_new <-
-  data.frame(
-    index=c("Local Simpson","Fraction South Asians","Fraction Blacks", "Fraction White British"),
-    rbind(
-      c(spmoran1$statistic, spmoran1$p.value),
-      c(spmoran2$statistic, spmoran2$p.value),
-      c(spmoran3$statistic, spmoran3$p.value),
-      c(spmoran4$statistic, spmoran4$p.value)))
-spmoransI_new_ch <-
-  data.frame(
-    index=c("Local Simpson","Fraction South Asians", "Fraction White British"),
-    rbind(
-      c(spmoran1_ch.test$statistic, spmoran1_ch$p.value),
-      c(spmoran2_ch.test$statistic, spmoran2_ch$p.value),
-      c(spmoran4_ch.test$statistic, spmoran4_ch$p.value)))
 
 
 #Bayesian CARleroux spatial models
