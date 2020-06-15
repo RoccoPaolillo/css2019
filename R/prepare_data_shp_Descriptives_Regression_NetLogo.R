@@ -303,6 +303,12 @@ lsoa_2001 <- lsoa %>% as_tibble() %>%
             change_segrlsoa_fraction_ethgrouped_other = segrlsoa_fraction_ethgrouped_other_2011 - segrlsoa_fraction_ethgrouped_other_2001
   ) %>% 
   right_join(lsoa_2001) %>% st_as_sf()
+lsoa_2001 <- lsoa_2011 %>% as_tibble() %>% select(LSOA01CD, LSOA01NM, LSOA11CD, LSOA11NM, CHGIND, TCITY15CD, TCITY15NM, contains("segr")) %>% 
+  rename_with(function(x) paste0(x,"_11"), .cols=contains("segr") & !contains("_11")) %>% 
+  left_join(lsoa_2001) %>% 
+  mutate(high = nssec1_1+nssec1_2+nssec2, mid = nssec3+nssec4,low = nssec5+nssec6+nssec7,
+         nonvalidses = neverw+ltunemp+ftstudent+notclass) %>% 
+  st_as_sf()
 save(lsoa_2001,lsoa_2011,file = "R/lsoa_2001_lsoa_2011")
 lsoa_2001 %>% as_tibble() %>% select(-geometry) %>% write_csv("R/lsoa_2001.csv")
 lsoa_2011 %>% as_tibble() %>% select(-geometry) %>% write_csv("R/lsoa_2011.csv")

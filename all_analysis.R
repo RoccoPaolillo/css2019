@@ -6,6 +6,8 @@ library(ggplot2)
 library(dplyr)
 library(CARBayes)
 library(tmap)
+library(spatialreg)
+
 
 lsoa_2001_lsoa_2011 <- load("R/lsoa_2001_lsoa_2011")
 
@@ -148,12 +150,24 @@ frml3 <- segrlsoa_fraction_ethgrouped_black ~
   quali_4n5_01_p + quali_no_01_p + 
   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
   nssec1_1_p + nssec7_p + 
-  partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
+  partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p + neverw2_01_p + ltunemp2_01_p + 
   nonwhitemig_01_p + 
   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
 
 frml4 <- segrlsoa_fraction_ethgrouped_whiteb ~ 
+  change_price_00_gr +
+  housdepri_4d_01_p + 
+  owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
+  quali_4n5_01_p + quali_no_01_p + 
+  age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
+  nssec1_1_p + nssec7_p + 
+  partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
+  nonwhitemig_01_p + 
+  vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
+  familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
+
+frml4_ch <- change_segrlsoa_fraction_ethgrouped_whiteb ~ 
   change_price_00_gr +
   housdepri_4d_01_p + 
   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
@@ -171,12 +185,28 @@ lm.mod2 <- lm(formula=frml2, data=bradford_nonb_shp@data)
 lm.mod2_ch <- lm(formula=frml2_ch, data=bradford_nonb_shp@data)
 lm.mod3 <- lm(formula=frml3, data=bradford_nonb_shp@data)
 lm.mod4 <- lm(formula=frml4, data=bradford_nonb_shp@data)
+lm.mod4_ch <- lm(formula=frml4_ch, data=bradford_nonb_shp@data)
+lagsarlm.mod1 <-    lagsarlm(formula=frml1   , data=bradford_nonb_shp@data, listw = W.list_bradford)
+lagsarlm.mod1_ch <- lagsarlm(formula=frml1_ch, data=bradford_nonb_shp@data, listw = W.list_bradford)
+lagsarlm.mod2 <-    lagsarlm(formula=frml2   , data=bradford_nonb_shp@data, listw = W.list_bradford)
+lagsarlm.mod2_ch <- lagsarlm(formula=frml2_ch, data=bradford_nonb_shp@data, listw = W.list_bradford)
+lagsarlm.mod3 <-    lagsarlm(formula=frml3   , data=bradford_nonb_shp@data, listw = W.list_bradford)
+lagsarlm.mod4 <-    lagsarlm(formula=frml4   , data=bradford_nonb_shp@data, listw = W.list_bradford)
+lagsarlm.mod4_ch <- lagsarlm(formula=frml4_ch, data=bradford_nonb_shp@data, listw = W.list_bradford)
 resid.lm.mod1 <- residuals(lm.mod1)
 resid.lm.mod1_ch <- residuals(lm.mod1_ch)
 resid.lm.mod2 <- residuals(lm.mod2)
 resid.lm.mod2_ch <- residuals(lm.mod2_ch)
 resid.lm.mod3 <- residuals(lm.mod3)
 resid.lm.mod4 <- residuals(lm.mod4)
+resid.lm.mod4_ch <- residuals(lm.mod4_ch)
+resid.lagsarlm.mod1 <-    residuals(lagsarlm.mod1)
+resid.lagsarlm.mod1_ch <- residuals(lagsarlm.mod1_ch)
+resid.lagsarlm.mod2 <-    residuals(lagsarlm.mod2)
+resid.lagsarlm.mod2_ch <- residuals(lagsarlm.mod2_ch)
+resid.lagsarlm.mod3 <-    residuals(lagsarlm.mod3)
+resid.lagsarlm.mod4 <-    residuals(lagsarlm.mod4)
+resid.lagsarlm.mod4_ch <- residuals(lagsarlm.mod4_ch)
 
 #moran's I
 moran1 <- moran.mc(x=resid.lm.mod1, listw=W.list_bradford, nsim=10000)
@@ -185,6 +215,21 @@ moran2 <- moran.mc(x=resid.lm.mod2, listw=W.list_bradford, nsim=10000)
 moran2_ch <- moran.mc(x=resid.lm.mod2_ch, listw=W.list_bradford, nsim=10000)
 moran3 <- moran.mc(x=resid.lm.mod3, listw=W.list_bradford, nsim=10000)
 moran4 <- moran.mc(x=resid.lm.mod4, listw=W.list_bradford, nsim=10000)
+moran4_ch.test <- moran.mc(x=resid.lm.mod4_ch, listw=W.list_bradford, nsim = 10000)
+moran1_ch.test <- moran.test(x=resid.lm.mod1_ch, listw=W.list_bradford)
+moran2_ch.test <- moran.test(x=resid.lm.mod2_ch, listw=W.list_bradford)
+moran4_ch.test <- moran.test(x=resid.lm.mod4_ch, listw=W.list_bradford)
+spmoran1    <- moran.mc(x=resid.lagsarlm.mod1,    listw=W.list_bradford, nsim=10000)
+spmoran1_ch <- moran.mc(x=resid.lagsarlm.mod1_ch, listw=W.list_bradford, nsim=10000)
+spmoran2    <- moran.mc(x=resid.lagsarlm.mod2,    listw=W.list_bradford, nsim=10000)
+spmoran2_ch <- moran.mc(x=resid.lagsarlm.mod2_ch, listw=W.list_bradford, nsim=10000)
+spmoran3    <- moran.mc(x=resid.lagsarlm.mod3,    listw=W.list_bradford, nsim=10000)
+spmoran4    <- moran.mc(x=resid.lagsarlm.mod4,    listw=W.list_bradford, nsim=10000)
+spmoran4_ch <- moran.mc(x=resid.lagsarlm.mod4_ch, listw=W.list_bradford, nsim=10000)
+spmoran1_ch.test <- moran.test(x=resid.lagsarlm.mod1_ch, listw=W.list_bradford)
+spmoran2_ch.test <- moran.test(x=resid.lagsarlm.mod2_ch, listw=W.list_bradford)
+spmoran4_ch.test <- moran.test(x=resid.lagsarlm.mod4_ch, listw=W.list_bradford)
+
 moransI_new <-
   data.frame(
     index=c("Local Simpson","Fraction South Asians","Fraction Blacks", "Fraction White British"),
@@ -193,9 +238,52 @@ moransI_new <-
       c(moran2$statistic, moran2$p.value),
       c(moran3$statistic, moran3$p.value),
       c(moran4$statistic, moran4$p.value)))
+moransI_new_ch <-
+  data.frame(
+    index=c("Local Simpson","Fraction South Asians", "Fraction White British"),
+    rbind(
+      c(moran1_ch$statistic, moran1_ch$p.value),
+      c(moran2_ch$statistic, moran2_ch$p.value),
+      c(moran4_ch$statistic, moran4_ch$p.value)))
+spmoransI_new <-
+  data.frame(
+    index=c("Local Simpson","Fraction South Asians","Fraction Blacks", "Fraction White British"),
+    rbind(
+      c(spmoran1$statistic, moran1$p.value),
+      c(spmoran2$statistic, moran2$p.value),
+      c(spmoran3$statistic, moran3$p.value),
+      c(spmoran4$statistic, moran4$p.value)))
+spmoransI_new_ch <-
+  data.frame(
+    index=c("Local Simpson","Fraction South Asians", "Fraction White British"),
+    rbind(
+      c(spmoran1_ch$statistic, moran1_ch$p.value),
+      c(spmoran2_ch$statistic, moran2_ch$p.value),
+      c(spmoran4_ch$statistic, moran4_ch$p.value)))
+
+
 saveRDS(moransI_new, file="moransI_new.RDS")
 
-#spatial models
+
+spmoransI_new <-
+  data.frame(
+    index=c("Local Simpson","Fraction South Asians","Fraction Blacks", "Fraction White British"),
+    rbind(
+      c(spmoran1$statistic, spmoran1$p.value),
+      c(spmoran2$statistic, spmoran2$p.value),
+      c(spmoran3$statistic, spmoran3$p.value),
+      c(spmoran4$statistic, spmoran4$p.value)))
+spmoransI_new_ch <-
+  data.frame(
+    index=c("Local Simpson","Fraction South Asians", "Fraction White British"),
+    rbind(
+      c(spmoran1_ch.test$statistic, spmoran1_ch$p.value),
+      c(spmoran2_ch.test$statistic, spmoran2_ch$p.value),
+      c(spmoran4_ch.test$statistic, spmoran4_ch$p.value)))
+
+
+#Bayesian CARleroux spatial models
+
 model.spatial1 <- S.CARleroux(formula=frml1, data=bradford_nonb_shp@data,
                               family="gaussian",W=W.mat_bradford,
                               burnin=20000,n.sample=100000,thin=10)
@@ -565,3 +653,6 @@ tm_shape(bradford_nonb_shp) +
   tm_borders(col = 'white', lwd = .5) +
   tm_layout(legend.position = c('left', 'top'), legend.only = T)
 dev.off()
+
+
+
