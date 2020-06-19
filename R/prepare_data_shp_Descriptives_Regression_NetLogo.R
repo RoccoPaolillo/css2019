@@ -341,6 +341,23 @@ write_csv(bradford_2001, "R/bradford_2001.csv")
 write_csv(bradford_2011, "R/bradford_2011.csv")
 
 
+### DESCRIPTIVES TO SHOW
+towns <- bind_rows(
+  towns01 %>% select(TCITY15NM, contains("segrtown_")) %>% mutate(year = 2001),
+  towns11 %>% select(TCITY15NM, contains("segrtown_")) %>% mutate(year = 2011)
+) %>% select(-segrtown_avgsimpson2_ethgroupedses, -segrtown_simpson2_ethgroupedses) %>% 
+  mutate(excess_avgsimpson2_ethgrouped = segrtown_avgsimpson2_ethgrouped - segrtown_simpson2_ethgrouped,
+         excess_avgsimpson2_eth = segrtown_avgsimpson2_eth - segrtown_simpson2_eth) %>% 
+  select(TCITY15NM, year, everything())
+towns %>% select(TCITY15NM, year, excess_avgsimpson2_ethgrouped, excess_avgsimpson2_eth) %>% 
+  arrange(desc(excess_avgsimpson2_eth)) %>% head(20)
+towns %>% select(TCITY15NM, year, segrtown_avgsimpson2_ethgrouped, segrtown_avgsimpson2_eth) %>% 
+  arrange(segrtown_avgsimpson2_eth) %>% head(20)
+towns %>% select(TCITY15NM, year, segrtown_simpson2_ethgrouped, segrtown_simpson2_eth) %>% 
+  arrange(segrtown_simpson2_eth) %>% head(20)
+towns %>% select(TCITY15NM, year, segrtown_fraction_ethgrouped_asian) %>% 
+  arrange(desc(segrtown_fraction_ethgrouped_asian)) %>% head(20)
+
 ## export LSOA of some towns including raw data to ESRI shapefile readable with NetLogo GIS extension
 for (TOWN in c("Southampton","Leeds", "Bradford", "Leicester", "London", "Manchester", "Birmingham", "Brighton and Hove",
                "Kingston upon Hull", "Stoke-on-Trent", "Plymouth", "Derby", "Nottingham", "Newcastle upon Tyne","Leeds", "Sheffield",
