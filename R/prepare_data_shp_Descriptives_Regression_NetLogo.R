@@ -231,7 +231,8 @@ segr_towns11 <- towns11 %>% select(TCITY15NM, all_11, allvalidses_11,
   group_by() %>% 
   select(-count, -all_11, -allvalidses_11)
 towns11 <- segr_towns11 %>% select(TCITY15NM, ethnicgrouping, ethnicity, segrtown_fraction) %>% 
-  pivot_wider(names_from = c(ethnicgrouping, ethnicity), values_from=segrtown_fraction, names_prefix="segrtown_fraction_") %>% 
+  pivot_wider(names_from = c(ethnicgrouping, ethnicity), values_from=segrtown_fraction, 
+              names_prefix="segrtown_fraction_") %>% 
   right_join(towns11, by = "TCITY15NM")
 towns11 <- segr_towns11 %>% select(TCITY15NM, ethnicgrouping, contains("simpson")) %>% distinct() %>% 
   pivot_wider(names_from = ethnicgrouping, values_from=c(segrtown_simpson, segrtown_simpson2)) %>% 
@@ -242,17 +243,26 @@ segr_lsoa01 <- lsoa01 %>%
   select(LSOA01CD, LSOA01NM, TCITY15NM, all_01, c(contains("ethgrouped_"),contains("eth_"))) %>% 
   pivot_longer(c(contains("ethgrouped_"),contains("eth_")), names_to = "ethnicity", values_to = "count") %>% 
   mutate(ethnicgrouping = word(ethnicity,1,sep="_"), ethnicity = word(ethnicity,2,-1,sep="_")) %>% 
+  right_join(segr_towns01, by = c("TCITY15NM", "ethnicity", "ethnicgrouping")) %>% 
   group_by(LSOA01CD, ethnicgrouping) %>% 
-  mutate(segrlsoa_fraction = count/all_01, segrlsoa_simpson = sum(segrlsoa_fraction^2), 
+  mutate(segrlsoa_fraction = count/all_01, 
+         segrlsoa_lq = segrlsoa_fraction/segrtown_fraction,
+         segrlsoa_simpson = sum(segrlsoa_fraction^2), 
          segrlsoa_simpson2 = sum((if_else(str_detect(ethnicity,"other"),0,1)*segrlsoa_fraction)^2)) %>% 
   group_by() %>% 
   select(-count, -all_01)
-lsoa01 <- segr_lsoa01 %>% select(LSOA01CD, LSOA01NM, TCITY15NM, ethnicgrouping, ethnicity, segrlsoa_fraction) %>% 
-  pivot_wider(names_from = c(ethnicgrouping, ethnicity), values_from=segrlsoa_fraction, names_prefix="segrlsoa_fraction_") %>% 
+lsoa01 <- segr_lsoa01 %>% select(LSOA01CD, LSOA01NM, TCITY15NM, ethnicgrouping, ethnicity, segrlsoa_fraction, segrlsoa_lq) %>% 
+  pivot_wider(names_from = c(ethnicgrouping, ethnicity), values_from=c(segrlsoa_fraction, segrlsoa_lq)) %>% 
   right_join(lsoa01, by = c("LSOA01CD","LSOA01NM","TCITY15NM"))
 lsoa01 <- segr_lsoa01 %>% select(LSOA01CD, LSOA01NM, TCITY15NM, ethnicgrouping, contains("simpson")) %>% distinct() %>% 
-  pivot_wider(names_from = ethnicgrouping, values_from=c(segrlsoa_simpson, segrlsoa_simpson2)) %>% 
-  right_join(lsoa01, by = c("LSOA01CD","LSOA01NM","TCITY15NM"))
+    pivot_wider(names_from = ethnicgrouping, 
+                values_from=c(segrlsoa_simpson, segrlsoa_simpson2, segrtown_simpson, segrtown_simpson2)) %>% 
+    right_join(lsoa01, by = c("LSOA01CD","LSOA01NM","TCITY15NM"))
+# add average simpson to towns
+towns01 <- lsoa01 %>% select(TCITY15NM, fraction_01, contains("simpson")) %>% group_by(TCITY15NM) %>% 
+  summarize(across(contains("lsoa_simpson"),function(x) sum(x*fraction_01))) %>% 
+  left_join(towns01, by = "TCITY15NM")
+names(towns01) <- sub("lsoa_simpson","town_avgsimpson",names(towns01))
 
 segr_lsoa11 <- lsoa11 %>% select(LSOA11CD, LSOA11NM, TCITY15NM, all_11, allvalidses_11, 
                                     c(contains("ethgroupedses_"),contains("ethgrouped_"),contains("eth_")),
@@ -263,18 +273,27 @@ segr_lsoa11 <- lsoa11 %>% select(LSOA11CD, LSOA11NM, TCITY15NM, all_11, allvalid
   pivot_longer(c(contains("ethgroupedses_"),contains("ethgrouped_"),contains("eth_")), 
                names_to = "ethnicity", values_to = "count") %>% 
   mutate(ethnicgrouping = word(ethnicity,1,sep="_"), ethnicity = word(ethnicity,2,-1,sep="_")) %>% 
+  right_join(segr_towns11, by = c("TCITY15NM", "ethnicity", "ethnicgrouping")) %>% 
   group_by(LSOA11CD, ethnicgrouping) %>% 
-  mutate(segrlsoa_fraction = count/if_else(ethnicgrouping=="ethgroupedses",allvalidses_11,all_11),
+  mutate(segrlsoa_fraction = count/if_else(ethnicgrouping=="ethgroupedses",allvalidses_11,all_11), 
+         segrlsoa_lq = segrlsoa_fraction/segrtown_fraction,
          segrlsoa_simpson = sum(segrlsoa_fraction^2), 
          segrlsoa_simpson2 = sum((if_else(str_detect(ethnicity,"other"),0,1)*segrlsoa_fraction)^2)) %>% 
   group_by() %>% 
   select(-count, -all_11, -allvalidses_11)
-lsoa11 <- segr_lsoa11 %>% select(LSOA11CD, LSOA11NM, TCITY15NM, ethnicgrouping, ethnicity, segrlsoa_fraction) %>% 
-  pivot_wider(names_from = c(ethnicgrouping, ethnicity), values_from=segrlsoa_fraction, names_prefix="segrlsoa_fraction_") %>% 
+lsoa11 <- segr_lsoa11 %>% select(LSOA11CD, LSOA11NM, TCITY15NM, ethnicgrouping, ethnicity, segrlsoa_fraction, segrlsoa_lq) %>% 
+  pivot_wider(names_from = c(ethnicgrouping, ethnicity), values_from=c(segrlsoa_fraction,segrlsoa_lq)) %>% 
   right_join(lsoa11, by = c("LSOA11CD","LSOA11NM","TCITY15NM"))
 lsoa11 <- segr_lsoa11 %>% select(LSOA11CD, LSOA11NM, TCITY15NM, ethnicgrouping, contains("simpson")) %>% distinct() %>% 
-  pivot_wider(names_from = ethnicgrouping, values_from=c(segrlsoa_simpson, segrlsoa_simpson2)) %>% 
+  pivot_wider(names_from = ethnicgrouping, 
+              values_from=c(segrlsoa_simpson, segrlsoa_simpson2, segrtown_simpson, segrtown_simpson2)) %>% 
   right_join(lsoa11, by = c("LSOA11CD","LSOA11NM","TCITY15NM"))
+# add average simpson to towns
+towns11 <- lsoa11 %>% select(TCITY15NM, fraction_11, contains("simpson")) %>% group_by(TCITY15NM) %>% 
+  summarize(across(contains("lsoa_simpson"),function(x) sum(x*fraction_11))) %>% 
+  left_join(towns11, by = "TCITY15NM")
+names(towns11) <- sub("lsoa_simpson","town_avgsimpson",names(towns11))
+
 rm(segr_lsoa01, segr_lsoa11, segr_towns01, segr_towns11, lsoa_2001, lsoa_2011)
 
 # final lsoa dataset
@@ -312,6 +331,7 @@ lsoa_2001 <- lsoa_2011 %>% as_tibble() %>% select(LSOA01CD, LSOA01NM, LSOA11CD, 
 save(lsoa_2001,lsoa_2011,file = "R/lsoa_2001_lsoa_2011")
 lsoa_2001 %>% as_tibble() %>% select(-geometry) %>% write_csv("R/lsoa_2001.csv")
 lsoa_2011 %>% as_tibble() %>% select(-geometry) %>% write_csv("R/lsoa_2011.csv")
+save(towns01, towns11, file = "R/towns01_towns11")
 
 # Bradford
 bradford_2001 <- lsoa_2001 %>% filter(TCITY15NM == "Bradford")

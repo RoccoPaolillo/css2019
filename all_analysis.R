@@ -23,6 +23,9 @@ bradford@data <- bradford@data %>%
          housdepri_2d_01_p = (housdepri_2d_01/(housdepri_no_01 + housdepri_1d_01 + housdepri_2d_01 + housdepri_3d_01 + housdepri_4d_01))*100,
          housdepri_1d_01_p = (housdepri_1d_01/(housdepri_no_01 + housdepri_1d_01 + housdepri_2d_01 + housdepri_3d_01 + housdepri_4d_01))*100,
          housdepri_no_01_p = (housdepri_no_01/(housdepri_no_01 + housdepri_1d_01 + housdepri_2d_01 + housdepri_3d_01 + housdepri_4d_01))*100,
+         tenure_socialh_p = (tenure_socialrent_01 + tenure_houseasoc_01)/total_tenure_01*100,
+         tenure_socialrent_01_p = tenure_socialrent_01/total_tenure_01*100,
+         tenure_private_01_p = tenure_private_01/total_tenure_01*100,
          owned_hh_01_p = (tenure_owned_01/total_tenure_01)*100,
          rented_hh_01_p = (tenure_rentfree_01/total_tenure_01)*100,
          socialhousing_hh_01_p = (tenure_socialrent_01/total_tenure_01)*100,
@@ -34,8 +37,8 @@ bradford@data <- bradford@data %>%
          quali_1_01_p = (quali_1_01/(quali_no_01 + quali_1_01 + quali_2_01 + quali_3_01 + quali_4n5_01 + quali_other_01))*100,
          quali_no_01_p = (quali_no_01/(quali_no_01 + quali_1_01 + quali_2_01 + quali_3_01 + quali_4n5_01 + quali_other_01))*100,
          age_0_to_4_01_p = (age_0_to_4_01/all_01)*100,
-         single_01_p = (marstat_sing_01/all1674_01)*100,
-         divorcedsep_01_p = ((marstat_sep_01+marstat_div_01)/all1674_01)*100,
+         single_01_p = (marstat_sing_01/all_01)*100,
+         divorcedsep_01_p = ((marstat_sep_01+marstat_div_01)/all_01)*100,
          married_01_p = ((marstat_marr_01)/all1674_01)*100,
          nssec1_1_p = ((nssec1_1)/all1674_01)*100,
          nssec1_2_p = ((nssec1_2)/all1674_01)*100,
@@ -44,6 +47,9 @@ bradford@data <- bradford@data %>%
          nssec4_p = ((nssec4)/all1674_01)*100,
          nssec6_p = ((nssec6)/all1674_01)*100,
          nssec7_p = ((nssec7)/all1674_01)*100,
+         high2_p = high/(high+mid+low)*100,
+         mid2_p = mid/(high+mid+low)*100,
+         low2_p = low/(high+mid+low)*100,
          highses_01_p = ((nssec1_1+nssec1_2)/all1674_01)*100,
          lowses_01_p = ((nssec5+nssec6+nssec7)/all1674_01)*100,
          partemp_01_p = (partemp/all1674_01)*100,
@@ -67,8 +73,17 @@ bradford@data <- bradford@data %>%
          loneparentsnodepchild_01_p = (hhcompten109/total_house_01)*100,
          otherhh_01_p = (hhcompten127/total_house_01)*100,
          students_01_p = (hhcompten136/total_house_01)*100,
+         hhcompten19_p  =  hhcompten19/total_house_01*100,
+         hhcompten46_p  =  hhcompten46/total_house_01*100,
+         hhcompten73_p  =  hhcompten73/total_house_01*100,
+         hhcompten100_p = hhcompten100/total_house_01*100,
+         hhcompten136_p = hhcompten136/total_house_01*100,
          nonwhitemig_01_p = (migr11/migr4)*100,
          whitemig_01_p = 100 - (migr11/migr4)*100,
+         accom02_p = accom02/total_accom_01*100,
+         accom13_p = accom13/total_accom_01*100,
+         accom29_p = accom29/total_accom_01*100,
+         accom33_p = accom33/total_accom_01*100,
          vacanthouses_01_p = (accom04/total_accom_01)*100,
          detachedhouse_01_p = (accom13/total_accom_01)*100,
          semidetachedhouse_01_p = (accom17/total_accom_01)*100,
@@ -77,7 +92,11 @@ bradford@data <- bradford@data %>%
          flatinshared_01_p = (accom33/total_accom_01)*100,
          flatincommercial_01_p = (accom37/total_accom_01)*100,
          caravan_01_p = (accom41/total_accom_01)*100,
-         shareddwelling_01_p = (accom45/total_accom_01)*100) %>% 
+         shareddwelling_01_p = (accom45/total_accom_01)*100,
+         turnover_01=(migr3+migr4)/all_01*100, # arrivals as a share of total
+         netmig_01=all_01/(all_01+migr7-migr3-migr4), # net migration
+         netmignw_01=all_01/(all_01+migr14-migr10-migr11), 
+         netmigw_01=all_01/(all_01+migr21-migr17-migr18)) %>% 
   mutate(nonwhitemig_01_p=ifelse(is.na(nonwhitemig_01_p), 0, nonwhitemig_01_p),
          whitemig_01_p=ifelse(is.na(whitemig_01_p), 0, whitemig_01_p))
 
@@ -87,201 +106,271 @@ W_mat_con <- nb2mat(W.nb.con, style="B", zero.policy=TRUE)
 W.list.con <- nb2listw(W.nb.con, style="B", zero.policy = TRUE)
 # no_nb <- which(rowSums(W_mat_con) == 0)
 # nonb_W <- W_mat_con[-no_nb, -no_nb]
-# bradford_nonb_shp <- bradford[-no_nb,]
-bradford_nonb_shp <- bradford
-# nonb_Wnb <- poly2nb(bradford_nonb_shp, row.names = rownames(bradford_nonb_shp@data))
+# bradford <- bradford[-no_nb,]
+#######bradford <- bradford
+# nonb_Wnb <- poly2nb(bradford, row.names = rownames(bradford@data))
 # W.mat_bradford <- nb2mat(nonb_Wnb, style="B")
 # W.list_bradford <- nb2listw(nonb_Wnb, style="B")
 W.mat_bradford <- W_mat_con
 W.list_bradford <- W.list.con
 
-#formulas
-frml1 <- segrlsoa_simpson_ethgrouped ~ 
-  change_price_00_gr +
-  housdepri_4d_01_p + 
-  owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-  quali_4n5_01_p + quali_no_01_p + 
-  age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-  nssec1_1_p + nssec7_p + 
-  partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
-  nonwhitemig_01_p +
-  vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p +
-  familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
-frml1_ch <- change_segrlsoa_simpson_ethgrouped ~ 
-  change_price_00_gr +
-  housdepri_4d_01_p + 
-  owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-  quali_4n5_01_p + quali_no_01_p + 
-  age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-  nssec1_1_p + nssec7_p + 
-  partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
-  nonwhitemig_01_p +
-  vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p +
-  familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
+# #formulas
+# frml1 <- segrlsoa_simpson_ethgrouped ~ 
+#   change_price_00_gr +
+#   housdepri_4d_01_p + 
+#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
+#   quali_4n5_01_p + quali_no_01_p + 
+#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
+#   nssec1_1_p + nssec7_p + 
+#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
+#   nonwhitemig_01_p +
+#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p +
+#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
+# frml1_ch <- change_segrlsoa_simpson_ethgrouped ~ 
+#   change_price_00_gr +
+#   housdepri_4d_01_p + 
+#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
+#   quali_4n5_01_p + quali_no_01_p + 
+#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
+#   nssec1_1_p + nssec7_p + 
+#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
+#   nonwhitemig_01_p +
+#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p +
+#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
+# 
+# frml2 <- segrlsoa_fraction_ethgrouped_asian ~ 
+#   change_price_00_gr +
+#   housdepri_4d_01_p + 
+#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
+#   quali_4n5_01_p + quali_no_01_p + 
+#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
+#   nssec1_1_p + nssec7_p + 
+#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
+#   nonwhitemig_01_p + 
+#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
+#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
+# 
+#   frml2_ch <- change_segrlsoa_fraction_ethgrouped_asian ~ 
+#   change_price_00_gr +
+#   housdepri_4d_01_p + 
+#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
+#   quali_4n5_01_p + quali_no_01_p + 
+#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
+#   nssec1_1_p + nssec7_p + 
+#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
+#   nonwhitemig_01_p + 
+#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
+#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
+# 
+# frml3 <- segrlsoa_fraction_ethgrouped_black ~ 
+#   change_price_00_gr +
+#   housdepri_4d_01_p + 
+#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
+#   quali_4n5_01_p + quali_no_01_p + 
+#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
+#   nssec1_1_p + nssec7_p + 
+#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p + neverw2_01_p + ltunemp2_01_p + 
+#   nonwhitemig_01_p + 
+#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
+#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
+# 
+# frml4 <- segrlsoa_fraction_ethgrouped_whiteb ~ 
+#   change_price_00_gr +
+#   housdepri_4d_01_p + 
+#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
+#   quali_4n5_01_p + quali_no_01_p + 
+#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
+#   nssec1_1_p + nssec7_p + 
+#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
+#   nonwhitemig_01_p + 
+#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
+#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
+# 
+# frml4_ch <- change_segrlsoa_fraction_ethgrouped_whiteb ~ 
+#   change_price_00_gr +
+#   housdepri_4d_01_p + 
+#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
+#   quali_4n5_01_p + quali_no_01_p + 
+#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
+#   nssec1_1_p + nssec7_p + 
+#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
+#   nonwhitemig_01_p + 
+#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
+#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
 
-frml2 <- segrlsoa_fraction_ethgrouped_asian ~ 
-  change_price_00_gr +
-  housdepri_4d_01_p + 
-  owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-  quali_4n5_01_p + quali_no_01_p + 
-  age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-  nssec1_1_p + nssec7_p + 
-  partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
-  nonwhitemig_01_p + 
-  vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
-  familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
+# New formulas 
+predictor_str <- "high2_p + mid2_p + # NSSEC 
+  netmignw_01 + netmigw_01 + # Migration
+  age_0_to_4_01_p + # Fertility
+  quali_1_01_p + quali_2_01_p + # Education
+  partemp_01_p + unemp1624_01_p + unemp50plus_01_p + # Activity
+  housdepri_1d_01_p + # House deprivation
+  tenure_socialh_p + tenure_private_01_p + # Tenure
+  accom02_p + # Vacant houses
+  hhcompten19_p + hhcompten46_p + hhcompten73_p + hhcompten100_p + hhcompten136_p + # Houshold compostion
+  accom13_p + accom29_p + accom33_p # Type of housing"
+frml1 <- as.formula(paste("segrlsoa_simpson2_ethgrouped ~", predictor_str))
+frml2 <- as.formula(paste("segrlsoa_fraction_ethgrouped_asian ~", predictor_str))
+frml4 <- as.formula(paste("segrlsoa_fraction_ethgrouped_whiteb ~", predictor_str))
+frml1_ch <- as.formula(paste("change_segrlsoa_simpson2_ethgrouped ~", predictor_str))
+frml2_ch <- as.formula(paste("change_segrlsoa_fraction_ethgrouped_asian ~", predictor_str))
+frml4_ch <- as.formula(paste("change_segrlsoa_fraction_ethgrouped_whiteb ~", predictor_str))
 
-  frml2_ch <- change_segrlsoa_fraction_ethgrouped_asian ~ 
-  change_price_00_gr +
-  housdepri_4d_01_p + 
-  owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-  quali_4n5_01_p + quali_no_01_p + 
-  age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-  nssec1_1_p + nssec7_p + 
-  partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
-  nonwhitemig_01_p + 
-  vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
-  familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
-
-frml3 <- segrlsoa_fraction_ethgrouped_black ~ 
-  change_price_00_gr +
-  housdepri_4d_01_p + 
-  owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-  quali_4n5_01_p + quali_no_01_p + 
-  age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-  nssec1_1_p + nssec7_p + 
-  partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p + neverw2_01_p + ltunemp2_01_p + 
-  nonwhitemig_01_p + 
-  vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
-  familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
-
-frml4 <- segrlsoa_fraction_ethgrouped_whiteb ~ 
-  change_price_00_gr +
-  housdepri_4d_01_p + 
-  owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-  quali_4n5_01_p + quali_no_01_p + 
-  age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-  nssec1_1_p + nssec7_p + 
-  partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
-  nonwhitemig_01_p + 
-  vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
-  familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
-
-frml4_ch <- change_segrlsoa_fraction_ethgrouped_whiteb ~ 
-  change_price_00_gr +
-  housdepri_4d_01_p + 
-  owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-  quali_4n5_01_p + quali_no_01_p + 
-  age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-  nssec1_1_p + nssec7_p + 
-  partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
-  nonwhitemig_01_p + 
-  vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
-  familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
-
-lm.mod1 <- lm(formula=frml1, data=bradford_nonb_shp@data)
-lm.mod1_ch <- lm(formula=frml1_ch, data=bradford_nonb_shp@data)
-lm.mod2 <- lm(formula=frml2, data=bradford_nonb_shp@data)
-lm.mod2_ch <- lm(formula=frml2_ch, data=bradford_nonb_shp@data)
-lm.mod3 <- lm(formula=frml3, data=bradford_nonb_shp@data)
-lm.mod4 <- lm(formula=frml4, data=bradford_nonb_shp@data)
-lm.mod4_ch <- lm(formula=frml4_ch, data=bradford_nonb_shp@data)
-lagsarlm.mod1 <-    lagsarlm(formula=frml1   , data=bradford_nonb_shp@data, listw = W.list_bradford)
-lagsarlm.mod1_ch <- lagsarlm(formula=frml1_ch, data=bradford_nonb_shp@data, listw = W.list_bradford)
-lagsarlm.mod2 <-    lagsarlm(formula=frml2   , data=bradford_nonb_shp@data, listw = W.list_bradford)
-lagsarlm.mod2_ch <- lagsarlm(formula=frml2_ch, data=bradford_nonb_shp@data, listw = W.list_bradford)
-lagsarlm.mod3 <-    lagsarlm(formula=frml3   , data=bradford_nonb_shp@data, listw = W.list_bradford)
-lagsarlm.mod4 <-    lagsarlm(formula=frml4   , data=bradford_nonb_shp@data, listw = W.list_bradford)
-lagsarlm.mod4_ch <- lagsarlm(formula=frml4_ch, data=bradford_nonb_shp@data, listw = W.list_bradford)
+lm.mod1 <- lm(formula=frml1, data=bradford@data)
+lm.mod1_ch <- lm(formula=frml1_ch, data=bradford@data)
+lm.mod2 <- lm(formula=frml2, data=bradford@data)
+lm.mod2_ch <- lm(formula=frml2_ch, data=bradford@data)
+lm.mod4 <- lm(formula=frml4, data=bradford@data)
+lm.mod4_ch <- lm(formula=frml4_ch, data=bradford@data)
+lagsarlm.mod1 <-    lagsarlm(formula=frml1   , data=bradford@data, listw = W.list_bradford)
+lagsarlm.mod1_ch <- lagsarlm(formula=frml1_ch, data=bradford@data, listw = W.list_bradford)
+lagsarlm.mod2 <-    lagsarlm(formula=frml2   , data=bradford@data, listw = W.list_bradford)
+lagsarlm.mod2_ch <- lagsarlm(formula=frml2_ch, data=bradford@data, listw = W.list_bradford)
+lagsarlm.mod4 <-    lagsarlm(formula=frml4   , data=bradford@data, listw = W.list_bradford)
+lagsarlm.mod4_ch <- lagsarlm(formula=frml4_ch, data=bradford@data, listw = W.list_bradford)
 resid.lm.mod1 <- residuals(lm.mod1)
 resid.lm.mod1_ch <- residuals(lm.mod1_ch)
 resid.lm.mod2 <- residuals(lm.mod2)
 resid.lm.mod2_ch <- residuals(lm.mod2_ch)
-resid.lm.mod3 <- residuals(lm.mod3)
 resid.lm.mod4 <- residuals(lm.mod4)
 resid.lm.mod4_ch <- residuals(lm.mod4_ch)
 resid.lagsarlm.mod1 <-    residuals(lagsarlm.mod1)
 resid.lagsarlm.mod1_ch <- residuals(lagsarlm.mod1_ch)
 resid.lagsarlm.mod2 <-    residuals(lagsarlm.mod2)
 resid.lagsarlm.mod2_ch <- residuals(lagsarlm.mod2_ch)
-resid.lagsarlm.mod3 <-    residuals(lagsarlm.mod3)
 resid.lagsarlm.mod4 <-    residuals(lagsarlm.mod4)
 resid.lagsarlm.mod4_ch <- residuals(lagsarlm.mod4_ch)
 
 #moran's I
 moran1 <- moran.mc(x=resid.lm.mod1, listw=W.list_bradford, nsim=10000)
-moran1_ch <- moran.mc(x=resid.lm.mod1_ch, listw=W.list_bradford, nsim=10000)
 moran2 <- moran.mc(x=resid.lm.mod2, listw=W.list_bradford, nsim=10000)
-moran2_ch <- moran.mc(x=resid.lm.mod2_ch, listw=W.list_bradford, nsim=10000)
-moran3 <- moran.mc(x=resid.lm.mod3, listw=W.list_bradford, nsim=10000)
 moran4 <- moran.mc(x=resid.lm.mod4, listw=W.list_bradford, nsim=10000)
-moran4_ch.test <- moran.mc(x=resid.lm.mod4_ch, listw=W.list_bradford, nsim = 10000)
+moran1_ch <- moran.mc(x=resid.lm.mod1_ch, listw=W.list_bradford, nsim=10000)
+moran2_ch <- moran.mc(x=resid.lm.mod2_ch, listw=W.list_bradford, nsim=10000)
+moran4_ch <- moran.mc(x=resid.lm.mod4_ch, listw=W.list_bradford, nsim=10000)
+moran1.test <- moran.test(x=resid.lm.mod1, listw=W.list_bradford)
+moran2.test <- moran.test(x=resid.lm.mod2, listw=W.list_bradford)
+moran4.test <- moran.test(x=resid.lm.mod4, listw=W.list_bradford)
 moran1_ch.test <- moran.test(x=resid.lm.mod1_ch, listw=W.list_bradford)
 moran2_ch.test <- moran.test(x=resid.lm.mod2_ch, listw=W.list_bradford)
 moran4_ch.test <- moran.test(x=resid.lm.mod4_ch, listw=W.list_bradford)
 spmoran1    <- moran.mc(x=resid.lagsarlm.mod1,    listw=W.list_bradford, nsim=10000)
-spmoran1_ch <- moran.mc(x=resid.lagsarlm.mod1_ch, listw=W.list_bradford, nsim=10000)
 spmoran2    <- moran.mc(x=resid.lagsarlm.mod2,    listw=W.list_bradford, nsim=10000)
-spmoran2_ch <- moran.mc(x=resid.lagsarlm.mod2_ch, listw=W.list_bradford, nsim=10000)
-spmoran3    <- moran.mc(x=resid.lagsarlm.mod3,    listw=W.list_bradford, nsim=10000)
 spmoran4    <- moran.mc(x=resid.lagsarlm.mod4,    listw=W.list_bradford, nsim=10000)
+spmoran1_ch <- moran.mc(x=resid.lagsarlm.mod1_ch, listw=W.list_bradford, nsim=10000)
+spmoran2_ch <- moran.mc(x=resid.lagsarlm.mod2_ch, listw=W.list_bradford, nsim=10000)
 spmoran4_ch <- moran.mc(x=resid.lagsarlm.mod4_ch, listw=W.list_bradford, nsim=10000)
-# spmoran1_ch.test <- moran.test(x=resid.lagsarlm.mod1_ch, listw=W.list_bradford)
-# spmoran2_ch.test <- moran.test(x=resid.lagsarlm.mod2_ch, listw=W.list_bradford)
-# spmoran4_ch.test <- moran.test(x=resid.lagsarlm.mod4_ch, listw=W.list_bradford)
+spmoran1.test <- moran.test(x=resid.lagsarlm.mod1, listw=W.list_bradford)
+spmoran2.test <- moran.test(x=resid.lagsarlm.mod2, listw=W.list_bradford)
+spmoran4.test <- moran.test(x=resid.lagsarlm.mod4, listw=W.list_bradford)
+spmoran1_ch.test <- moran.test(x=resid.lagsarlm.mod1_ch, listw=W.list_bradford)
+spmoran2_ch.test <- moran.test(x=resid.lagsarlm.mod2_ch, listw=W.list_bradford)
+spmoran4_ch.test <- moran.test(x=resid.lagsarlm.mod4_ch, listw=W.list_bradford)
 
-moransI_new <-
-  data.frame(
-    index=c("Local Simpson","Fraction South Asians","Fraction Blacks", "Fraction White British"),
-    rbind(
-      c(moran1$statistic, moran1$p.value),
-      c(moran2$statistic, moran2$p.value),
-      c(moran3$statistic, moran3$p.value),
-      c(moran4$statistic, moran4$p.value)))
-moransI_new_ch <-
-  data.frame(
-    index=c("Local Simpson","Fraction South Asians", "Fraction White British"),
-    rbind(
-      c(moran1_ch$statistic, moran1_ch$p.value),
-      c(moran2_ch$statistic, moran2_ch$p.value),
-      c(moran4_ch$statistic, moran4_ch$p.value)))
-spmoransI_new <-
-  data.frame(
-    index=c("Local Simpson","Fraction South Asians","Fraction Blacks", "Fraction White British"),
-    rbind(
-      c(spmoran1$statistic, moran1$p.value),
-      c(spmoran2$statistic, moran2$p.value),
-      c(spmoran3$statistic, moran3$p.value),
-      c(spmoran4$statistic, moran4$p.value)))
-spmoransI_new_ch <-
-  data.frame(
-    index=c("Local Simpson","Fraction South Asians", "Fraction White British"),
-    rbind(
-      c(spmoran1_ch$statistic, moran1_ch$p.value),
-      c(spmoran2_ch$statistic, moran2_ch$p.value),
-      c(spmoran4_ch$statistic, moran4_ch$p.value)))
+moransI <-  data.frame(
+  index=c("Local Simpson","Fraction Asians", "Fraction White British"),
+  statistic=c(moran1$statistic, 
+              moran2$statistic, 
+              moran4$statistic),
+  p_value=c(moran1$p.value, 
+            moran2$p.value, 
+            moran4$p.value))
+moransI_ch <-  data.frame(
+  index=c("Local Simpson","Fraction Asians", "Fraction White British"),
+  statistic=c(moran1_ch$statistic, 
+              moran2_ch$statistic, 
+              moran4_ch$statistic),
+  p_value=c(moran1_ch$p.value, 
+            moran2_ch$p.value, 
+            moran4_ch$p.value))
+spmoransI <-  data.frame(
+  index=c("Local Simpson","Fraction Asians", "Fraction White British"),
+  statistic=c(spmoran1$statistic, 
+              spmoran2$statistic, 
+              spmoran4$statistic),
+  p_value=c(spmoran1$p.value, 
+            spmoran2$p.value, 
+            spmoran4$p.value))
+spmoransI_ch <-  data.frame(
+  index=c("Local Simpson","Fraction Asians", "Fraction White British"),
+  statistic=c(spmoran1_ch$statistic, 
+              spmoran2_ch$statistic, 
+              spmoran4_ch$statistic),
+  p_value=c(spmoran1_ch$p.value, 
+            spmoran2_ch$p.value, 
+            spmoran4_ch$p.value))
+moransI.test <-  data.frame(
+  index=c("Local Simpson","Fraction Asians", "Fraction White British"),
+  statistic=c(moran1.test$estimate[1], 
+              moran2.test$estimate[1], 
+              moran4.test$estimate[1]),
+  p_value=c(moran1.test$p.value, 
+            moran2.test$p.value, 
+            moran4.test$p.value))
+moransI_ch.test <-  data.frame(
+  index=c("Local Simpson","Fraction Asians", "Fraction White British"),
+  statistic=c(moran1_ch.test$estimate[1], 
+              moran2_ch.test$estimate[1], 
+              moran4_ch.test$estimate[1]),
+  p_value=c(moran1_ch.test$p.value, 
+            moran2_ch.test$p.value, 
+            moran4_ch.test$p.value))
+spmoransI.test <-  data.frame(
+  index=c("Local Simpson","Fraction Asians", "Fraction White British"),
+  statistic=c(spmoran1.test$estimate[1], 
+              spmoran2.test$estimate[1], 
+              spmoran4.test$estimate[1]),
+  p_value=c(spmoran1.test$p.value, 
+            spmoran2.test$p.value, 
+            spmoran4.test$p.value))
+spmoransI_ch.test <-  data.frame(
+  index=c("Local Simpson","Fraction Asians", "Fraction White British"),
+  statistic=c(spmoran1_ch.test$estimate[1], 
+              spmoran2_ch.test$estimate[1], 
+              spmoran4_ch.test$estimate[1]),
+  p_value=c(spmoran1_ch.test$p.value, 
+            spmoran2_ch.test$p.value, 
+            spmoran4_ch.test$p.value))
 
+print(summary(lm.mod1), signif.stars = TRUE)
+print(summary(lm.mod2), signif.stars = TRUE)
+print(summary(lm.mod4), signif.stars = TRUE)
+moransI
+print(summary(lm.mod1_ch), signif.stars = TRUE)
+print(summary(lm.mod2_ch), signif.stars = TRUE)
+print(summary(lm.mod4_ch), signif.stars = TRUE)
+moransI_ch
+print(summary(lagsarlm.mod1), signif.stars = TRUE)
+print(summary(lagsarlm.mod2), signif.stars = TRUE)
+print(summary(lagsarlm.mod4), signif.stars = TRUE)
+spmoransI
+print(summary(lagsarlm.mod1_ch), signif.stars = TRUE)
+print(summary(lagsarlm.mod2_ch), signif.stars = TRUE)
+print(summary(lagsarlm.mod4_ch), signif.stars = TRUE)
+spmoransI_ch
 
-saveRDS(moransI_new, file="moransI_new.RDS")
-
+plot(bradford@data$partemp_01_p,bradford@data$change_segrlsoa_simpson2_ethgrouped)
+plot(bradford@data$partemp_01_p,bradford@data$segrlsoa_simpson2_ethgrouped)
+plot(bradford@data$netmignw_01,bradford@data$change_segrlsoa_fraction_ethgrouped_asian)
+plot(bradford@data$netmignw_01,bradford@data$segrlsoa_fraction_ethgrouped_asian)
 
 
 
 #Bayesian CARleroux spatial models
 
-model.spatial1 <- S.CARleroux(formula=frml1, data=bradford_nonb_shp@data,
+model.spatial1 <- S.CARleroux(formula=frml1, data=bradford@data,
                               family="gaussian",W=W.mat_bradford,
                               burnin=20000,n.sample=100000,thin=10)
-model.spatial2 <- S.CARleroux(formula=frml2, data=bradford_nonb_shp@data,
+model.spatial2 <- S.CARleroux(formula=frml2, data=bradford@data,
                               family="gaussian",W=W.mat_bradford,
                               burnin=20000,n.sample=100000,thin=10)
-model.spatial2_ch <- S.CARleroux(formula=frml2_ch, data=bradford_nonb_shp@data,
+model.spatial2_ch <- S.CARleroux(formula=frml2_ch, data=bradford@data,
                                  family="gaussian",W=W.mat_bradford,
                                  burnin=20000,n.sample=100000,thin=10)
-model.spatial3 <- S.CARleroux(formula=frml3, data=bradford_nonb_shp@data,
+model.spatial3 <- S.CARleroux(formula=frml3, data=bradford@data,
                               family="gaussian",W=W.mat_bradford,
                               burnin=20000,n.sample=100000,thin=10)
-model.spatial4 <- S.CARleroux(formula=frml4, data=bradford_nonb_shp@data,
+model.spatial4 <- S.CARleroux(formula=frml4, data=bradford@data,
                               family="gaussian",W=W.mat_bradford,
                               burnin=20000,n.sample=100000,thin=10)
 #models
@@ -292,16 +381,16 @@ m_bradford_new <- cbind(model.spatial1$summary.results[,1:3],
 saveRDS(m_bradford_new, file="D:\\PhD\\Projects\\CZ, JL, RP, SS and ARS - segregation\\Abstract\\m_bradford_new.RDS")
 
 #store results of models back into the map
-model.fitted_bradford01 <- data.frame(LSOA11CD = names(table(bradford_nonb_shp@data$LSOA11CD)), 
+model.fitted_bradford01 <- data.frame(LSOA11CD = names(table(bradford@data$LSOA11CD)), 
                                       predicted_LS_simpson_01=fitted(model.spatial1),
                                       predicted_LQ_asians_01 = fitted(model.spatial2),
                                       predicted_LQ_blacks_01 = fitted(model.spatial3),
                                       predicted_LQ_whiteb_01 = fitted(model.spatial4))
 model.fitted_bradford01 <- model.fitted_bradford01 %>% mutate(LSOA11CD=as.character(LSOA11CD))
-bradford_nonb_shp@data <- left_join(bradford_nonb_shp@data, model.fitted_bradford01, by = (GEOID = "LSOA11CD"))
+bradford@data <- left_join(bradford@data, model.fitted_bradford01, by = (GEOID = "LSOA11CD"))
 
 #save predictions
-preds_new <- bradford_nonb_shp@data
+preds_new <- bradford@data
 saveRDS(preds_new, file="D:\\PhD\\Projects\\CZ, JL, RP, SS and ARS - segregation\\Abstract\\preds_new.RDS")
 
 
@@ -343,94 +432,94 @@ vars <- c("change_segrlsoa_simpson_ethgrouped",
 pval <- 0.05
 
 #local simpson
-locm01 <- localmoran(bradford_nonb_shp$segrlsoa_simpson_ethgrouped, W.list_bradford)  #calculate the local moran's I
+locm01 <- localmoran(bradford$segrlsoa_simpson_ethgrouped, W.list_bradford)  #calculate the local moran's I
 summary(locm01)
 # manually make a moran plot standarize variables
-bradford_nonb_shp$ssegrlsoa_simpson_ethgrouped <- scale(bradford_nonb_shp$segrlsoa_simpson_ethgrouped)  #save to a new column
+bradford$ssegrlsoa_simpson_ethgrouped <- scale(bradford$segrlsoa_simpson_ethgrouped)  #save to a new column
 # create a lagged variable
-bradford_nonb_shp$lag_ssegrlsoa_simpson_ethgrouped <- lag.listw(W.list_bradford, bradford_nonb_shp$ssegrlsoa_simpson_ethgrouped)
-plot(x = bradford_nonb_shp$ssegrlsoa_simpson_ethgrouped, y = bradford_nonb_shp$lag_ssegrlsoa_simpson_ethgrouped, main = " Moran Scatterplot PPOV", ylim=c(-10,10), xlim=c(-2,2))
+bradford$lag_ssegrlsoa_simpson_ethgrouped <- lag.listw(W.list_bradford, bradford$ssegrlsoa_simpson_ethgrouped)
+plot(x = bradford$ssegrlsoa_simpson_ethgrouped, y = bradford$lag_ssegrlsoa_simpson_ethgrouped, main = " Moran Scatterplot PPOV", ylim=c(-10,10), xlim=c(-2,2))
 abline(h = 0, v = 0)
-abline(lm(bradford_nonb_shp$lag_ssegrlsoa_simpson_ethgrouped ~ bradford_nonb_shp$ssegrlsoa_simpson_ethgrouped), lty = 3, lwd = 4, col = "red")
+abline(lm(bradford$lag_ssegrlsoa_simpson_ethgrouped ~ bradford$ssegrlsoa_simpson_ethgrouped), lty = 3, lwd = 4, col = "red")
 
 # identify the moran plot quadrant for each observation
-bradford_nonb_shp$quad_sig_ls <- NA
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_simpson_ethgrouped >= 0 & bradford_nonb_shp$lag_ssegrlsoa_simpson_ethgrouped >= 0) & (locm01[, 5] <= pval), "quad_sig_ls"] <- 1
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_simpson_ethgrouped <= 0 & bradford_nonb_shp$lag_ssegrlsoa_simpson_ethgrouped <= 0) & (locm01[, 5] <= pval), "quad_sig_ls"] <- 2
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_simpson_ethgrouped >= 0 & bradford_nonb_shp$lag_ssegrlsoa_simpson_ethgrouped <= 0) & (locm01[, 5] <= pval), "quad_sig_ls"] <- 3
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_simpson_ethgrouped >= 0 & bradford_nonb_shp$lag_ssegrlsoa_simpson_ethgrouped <= 0) & (locm01[, 5] <= pval), "quad_sig_ls"] <- 4
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_simpson_ethgrouped <= 0 & bradford_nonb_shp$lag_ssegrlsoa_simpson_ethgrouped >= 0) & (locm01[, 5] <= pval), "quad_sig_ls"] <- 5  #WE ASSIGN A 5 TO ALL NON-SIGNIFICANT OBSERVATIONS
+bradford$quad_sig_ls <- NA
+bradford@data[(bradford$ssegrlsoa_simpson_ethgrouped >= 0 & bradford$lag_ssegrlsoa_simpson_ethgrouped >= 0) & (locm01[, 5] <= pval), "quad_sig_ls"] <- 1
+bradford@data[(bradford$ssegrlsoa_simpson_ethgrouped <= 0 & bradford$lag_ssegrlsoa_simpson_ethgrouped <= 0) & (locm01[, 5] <= pval), "quad_sig_ls"] <- 2
+bradford@data[(bradford$ssegrlsoa_simpson_ethgrouped >= 0 & bradford$lag_ssegrlsoa_simpson_ethgrouped <= 0) & (locm01[, 5] <= pval), "quad_sig_ls"] <- 3
+bradford@data[(bradford$ssegrlsoa_simpson_ethgrouped >= 0 & bradford$lag_ssegrlsoa_simpson_ethgrouped <= 0) & (locm01[, 5] <= pval), "quad_sig_ls"] <- 4
+bradford@data[(bradford$ssegrlsoa_simpson_ethgrouped <= 0 & bradford$lag_ssegrlsoa_simpson_ethgrouped >= 0) & (locm01[, 5] <= pval), "quad_sig_ls"] <- 5  #WE ASSIGN A 5 TO ALL NON-SIGNIFICANT OBSERVATIONS
 
 #fraction asians
-locm01 <- localmoran(bradford_nonb_shp$segrlsoa_fraction_ethgrouped_asian, W.list_bradford)  #calculate the local moran's I
+locm01 <- localmoran(bradford$segrlsoa_fraction_ethgrouped_asian, W.list_bradford)  #calculate the local moran's I
 summary(locm01)
 # manually make a moran plot standarize variables
-bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_asian <- scale(bradford_nonb_shp$segrlsoa_fraction_ethgrouped_asian)  #save to a new column
+bradford$ssegrlsoa_fraction_ethgrouped_asian <- scale(bradford$segrlsoa_fraction_ethgrouped_asian)  #save to a new column
 # create a lagged variable
-bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_asian <- lag.listw(W.list_bradford, bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_asian)
-plot(x = bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_asian, y = bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_asian, main = " Moran Scatterplot PPOV", ylim=c(-10,10), xlim=c(-2,2))
+bradford$lag_ssegrlsoa_fraction_ethgrouped_asian <- lag.listw(W.list_bradford, bradford$ssegrlsoa_fraction_ethgrouped_asian)
+plot(x = bradford$ssegrlsoa_fraction_ethgrouped_asian, y = bradford$lag_ssegrlsoa_fraction_ethgrouped_asian, main = " Moran Scatterplot PPOV", ylim=c(-10,10), xlim=c(-2,2))
 abline(h = 0, v = 0)
-abline(lm(bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_asian ~ bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_asian), lty = 3, lwd = 4, col = "red")
+abline(lm(bradford$lag_ssegrlsoa_fraction_ethgrouped_asian ~ bradford$ssegrlsoa_fraction_ethgrouped_asian), lty = 3, lwd = 4, col = "red")
 
 # identify the moran plot quadrant for each observation
-bradford_nonb_shp$quad_sig_lqa <- NA
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_asian >= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_asian >= 0) & (locm01[, 5] <= pval), "quad_sig_lqa"] <- 1
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_asian <= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_asian <= 0) & (locm01[, 5] <= pval), "quad_sig_lqa"] <- 2
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_asian >= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_asian <= 0) & (locm01[, 5] <= pval), "quad_sig_lqa"] <- 3
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_asian >= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_asian <= 0) & (locm01[, 5] <= pval), "quad_sig_lqa"] <- 4
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_asian <= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_asian >= 0) & (locm01[, 5] <= pval), "quad_sig_lqa"] <- 5  #WE ASSIGN A 5 TO ALL NON-SIGNIFICANT OBSERVATIONS
+bradford$quad_sig_lqa <- NA
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_asian >= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_asian >= 0) & (locm01[, 5] <= pval), "quad_sig_lqa"] <- 1
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_asian <= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_asian <= 0) & (locm01[, 5] <= pval), "quad_sig_lqa"] <- 2
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_asian >= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_asian <= 0) & (locm01[, 5] <= pval), "quad_sig_lqa"] <- 3
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_asian >= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_asian <= 0) & (locm01[, 5] <= pval), "quad_sig_lqa"] <- 4
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_asian <= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_asian >= 0) & (locm01[, 5] <= pval), "quad_sig_lqa"] <- 5  #WE ASSIGN A 5 TO ALL NON-SIGNIFICANT OBSERVATIONS
 
 #fraction blacks
-locm01 <- localmoran(bradford_nonb_shp$segrlsoa_fraction_ethgrouped_black, W.list_bradford)  #calculate the local moran's I
+locm01 <- localmoran(bradford$segrlsoa_fraction_ethgrouped_black, W.list_bradford)  #calculate the local moran's I
 summary(locm01)
 # manually make a moran plot standarize variables
-bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_black <- scale(bradford_nonb_shp$segrlsoa_fraction_ethgrouped_black)  #save to a new column
+bradford$ssegrlsoa_fraction_ethgrouped_black <- scale(bradford$segrlsoa_fraction_ethgrouped_black)  #save to a new column
 # create a lagged variable
-bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_black <- lag.listw(W.list_bradford, bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_black)
-plot(x = bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_black, y = bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_black, main = " Moran Scatterplot PPOV", ylim=c(-10,10), xlim=c(-2,2))
+bradford$lag_ssegrlsoa_fraction_ethgrouped_black <- lag.listw(W.list_bradford, bradford$ssegrlsoa_fraction_ethgrouped_black)
+plot(x = bradford$ssegrlsoa_fraction_ethgrouped_black, y = bradford$lag_ssegrlsoa_fraction_ethgrouped_black, main = " Moran Scatterplot PPOV", ylim=c(-10,10), xlim=c(-2,2))
 abline(h = 0, v = 0)
-abline(lm(bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_black ~ bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_black), lty = 3, lwd = 4, col = "red")
+abline(lm(bradford$lag_ssegrlsoa_fraction_ethgrouped_black ~ bradford$ssegrlsoa_fraction_ethgrouped_black), lty = 3, lwd = 4, col = "red")
 
 # identify the moran plot quadrant for each observation
-bradford_nonb_shp$quad_sig_lqb <- NA
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_black >= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_black >= 0) & (locm01[, 5] <= pval), "quad_sig_lqb"] <- 1
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_black <= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_black <= 0) & (locm01[, 5] <= pval), "quad_sig_lqb"] <- 2
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_black >= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_black <= 0) & (locm01[, 5] <= pval), "quad_sig_lqb"] <- 3
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_black >= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_black <= 0) & (locm01[, 5] <= pval), "quad_sig_lqb"] <- 4
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_black <= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_black >= 0) & (locm01[, 5] <= pval), "quad_sig_lqb"] <- 5  #WE ASSIGN A 5 TO ALL NON-SIGNIFICANT OBSERVATIONS
+bradford$quad_sig_lqb <- NA
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_black >= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_black >= 0) & (locm01[, 5] <= pval), "quad_sig_lqb"] <- 1
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_black <= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_black <= 0) & (locm01[, 5] <= pval), "quad_sig_lqb"] <- 2
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_black >= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_black <= 0) & (locm01[, 5] <= pval), "quad_sig_lqb"] <- 3
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_black >= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_black <= 0) & (locm01[, 5] <= pval), "quad_sig_lqb"] <- 4
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_black <= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_black >= 0) & (locm01[, 5] <= pval), "quad_sig_lqb"] <- 5  #WE ASSIGN A 5 TO ALL NON-SIGNIFICANT OBSERVATIONS
 
 #fraction whites
-locm01 <- localmoran(bradford_nonb_shp$segrlsoa_fraction_ethgrouped_whiteb, W.list_bradford)  #calculate the local moran's I
+locm01 <- localmoran(bradford$segrlsoa_fraction_ethgrouped_whiteb, W.list_bradford)  #calculate the local moran's I
 summary(locm01)
 # manually make a moran plot standarize variables
-bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_whiteb <- scale(bradford_nonb_shp$segrlsoa_fraction_ethgrouped_whiteb)  #save to a new column
+bradford$ssegrlsoa_fraction_ethgrouped_whiteb <- scale(bradford$segrlsoa_fraction_ethgrouped_whiteb)  #save to a new column
 # create a lagged variable
-bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_whiteb <- lag.listw(W.list_bradford, bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_whiteb)
-plot(x = bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_whiteb, y = bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_whiteb, main = " Moran Scatterplot PPOV", ylim=c(-10,10), xlim=c(-2,2))
+bradford$lag_ssegrlsoa_fraction_ethgrouped_whiteb <- lag.listw(W.list_bradford, bradford$ssegrlsoa_fraction_ethgrouped_whiteb)
+plot(x = bradford$ssegrlsoa_fraction_ethgrouped_whiteb, y = bradford$lag_ssegrlsoa_fraction_ethgrouped_whiteb, main = " Moran Scatterplot PPOV", ylim=c(-10,10), xlim=c(-2,2))
 abline(h = 0, v = 0)
-abline(lm(bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_whiteb ~ bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_whiteb), lty = 3, lwd = 4, col = "red")
+abline(lm(bradford$lag_ssegrlsoa_fraction_ethgrouped_whiteb ~ bradford$ssegrlsoa_fraction_ethgrouped_whiteb), lty = 3, lwd = 4, col = "red")
 
 # identify the moran plot quadrant for each observation
-bradford_nonb_shp$quad_sig_lqw <- NA
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_whiteb >= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_whiteb >= 0) & (locm01[, 5] <= pval), "quad_sig_lqw"] <- 1
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_whiteb <= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_whiteb <= 0) & (locm01[, 5] <= pval), "quad_sig_lqw"] <- 2
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_whiteb >= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_whiteb <= 0) & (locm01[, 5] <= pval), "quad_sig_lqw"] <- 3
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_whiteb >= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_whiteb <= 0) & (locm01[, 5] <= pval), "quad_sig_lqw"] <- 4
-bradford_nonb_shp@data[(bradford_nonb_shp$ssegrlsoa_fraction_ethgrouped_whiteb <= 0 & bradford_nonb_shp$lag_ssegrlsoa_fraction_ethgrouped_whiteb >= 0) & (locm01[, 5] <= pval), "quad_sig_lqw"] <- 5  #WE ASSIGN A 5 TO ALL NON-SIGNIFICANT OBSERVATIONS
+bradford$quad_sig_lqw <- NA
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_whiteb >= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_whiteb >= 0) & (locm01[, 5] <= pval), "quad_sig_lqw"] <- 1
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_whiteb <= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_whiteb <= 0) & (locm01[, 5] <= pval), "quad_sig_lqw"] <- 2
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_whiteb >= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_whiteb <= 0) & (locm01[, 5] <= pval), "quad_sig_lqw"] <- 3
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_whiteb >= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_whiteb <= 0) & (locm01[, 5] <= pval), "quad_sig_lqw"] <- 4
+bradford@data[(bradford$ssegrlsoa_fraction_ethgrouped_whiteb <= 0 & bradford$lag_ssegrlsoa_fraction_ethgrouped_whiteb >= 0) & (locm01[, 5] <= pval), "quad_sig_lqw"] <- 5  #WE ASSIGN A 5 TO ALL NON-SIGNIFICANT OBSERVATIONS
 
 # Set the breaks for the thematic map classes
 breaks <- seq(1, 5, 1)
 # Set the corresponding labels for the thematic map classes
 labels <- c("high-High", "low-Low", "High-Low", "Low-High", "Not Signif.")
 # see ?findInterval - This is necessary for making a map
-bradford_nonb_shp@data$np01_ls <- as.character(findInterval(bradford_nonb_shp$quad_sig_ls, breaks))
-bradford_nonb_shp@data$np01_lqa <- as.character(findInterval(bradford_nonb_shp$quad_sig_lqa, breaks))
-bradford_nonb_shp@data$np01_lqb <- as.character(findInterval(bradford_nonb_shp$quad_sig_lqb, breaks))
-bradford_nonb_shp@data$np01_lqw <- as.character(findInterval(bradford_nonb_shp$quad_sig_lqw, breaks))
+bradford@data$np01_ls <- as.character(findInterval(bradford$quad_sig_ls, breaks))
+bradford@data$np01_lqa <- as.character(findInterval(bradford$quad_sig_lqa, breaks))
+bradford@data$np01_lqb <- as.character(findInterval(bradford$quad_sig_lqb, breaks))
+bradford@data$np01_lqw <- as.character(findInterval(bradford$quad_sig_lqw, breaks))
 colors <- c("red", "blue", "lightpink", "skyblue2", "white")
 
 pdf("lisa_bradford.pdf",width=6,height=4,paper='special') 
-tm_shape(bradford_nonb_shp) +  
+tm_shape(bradford) +  
   tm_fill(col="np01_ls",
           colorNA = "gray89",
           textNA = "n.s.",
@@ -454,7 +543,7 @@ tm_shape(bradford_nonb_shp) +
 dev.off()
 
 pdf("fractionasian_bradford.pdf",width=6,height=4,paper='special') 
-tm_shape(bradford_nonb_shp) +  
+tm_shape(bradford) +  
   tm_fill(col="np01_lqa",
           colorNA = "gray89",
           textNA = "n.s.",
@@ -478,7 +567,7 @@ tm_shape(bradford_nonb_shp) +
 dev.off()
 
 pdf("fractionblack_bradford.pdf",width=6,height=4,paper='special') 
-tm_shape(bradford_nonb_shp) +  
+tm_shape(bradford) +  
   tm_fill(col="np01_lqb",
           colorNA = "gray89",
           textNA = "n.s.",
@@ -502,7 +591,7 @@ tm_shape(bradford_nonb_shp) +
 dev.off()
 
 pdf("fractionwhite_bradford.pdf",width=6,height=4,paper='special') 
-tm_shape(bradford_nonb_shp) +  
+tm_shape(bradford) +  
   tm_fill(col="np01_lqw",
           colorNA = "gray89",
           textNA = "n.s.",
@@ -526,7 +615,7 @@ tm_shape(bradford_nonb_shp) +
 dev.off()
 
 pdf("legend_bradford.pdf",width=6,height=4,paper='special') 
-tm_shape(bradford_nonb_shp) +  
+tm_shape(bradford) +  
   tm_fill(col="np01_lqw",
           colorNA = "gray89",
           textNA = "n.s.",
@@ -545,7 +634,7 @@ dev.off()
 #segrlsoa_fraction_ethgrouped_whiteb
 
 pdf("local_simpson_des.pdf",width=6,height=4,paper='special') 
-tm_shape(bradford_nonb_shp) + 
+tm_shape(bradford) + 
   tm_fill(col = "segrlsoa_simpson_ethgrouped", 
           palette="RdBu",
           title = "",
@@ -566,7 +655,7 @@ tm_shape(bradford_nonb_shp) +
 dev.off()
 
 pdf("fraction_asian_des.pdf",width=6,height=4,paper='special') 
-tm_shape(bradford_nonb_shp) + 
+tm_shape(bradford) + 
   tm_fill(col = "segrlsoa_fraction_ethgrouped_asian", 
           palette="RdBu",
           title = "",
@@ -587,7 +676,7 @@ tm_shape(bradford_nonb_shp) +
 dev.off()
 
 pdf("fraction_black_des.pdf",width=6,height=4,paper='special') 
-tm_shape(bradford_nonb_shp) + 
+tm_shape(bradford) + 
   tm_fill(col = "segrlsoa_fraction_ethgrouped_black", 
           palette="RdBu",
           title = "",
@@ -608,7 +697,7 @@ tm_shape(bradford_nonb_shp) +
 dev.off()
 
 pdf("fraction_white_des.pdf",width=6,height=4,paper='special') 
-tm_shape(bradford_nonb_shp) + 
+tm_shape(bradford) + 
   tm_fill(col = "segrlsoa_fraction_ethgrouped_whiteb", 
           palette="RdBu",
           title = "",
@@ -629,7 +718,7 @@ tm_shape(bradford_nonb_shp) +
 dev.off()
 
 pdf("legend_des.pdf",width=6,height=4,paper='special') 
-tm_shape(bradford_nonb_shp) + 
+tm_shape(bradford) + 
   tm_fill(col = "segrlsoa_fraction_ethgrouped_whiteb", 
           palette="RdBu",
           title = "",

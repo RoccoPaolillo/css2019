@@ -467,7 +467,7 @@ scale-down-pop
 scale-down-pop
 1
 20
-1.0
+2.0
 1
 1
 NIL
@@ -574,7 +574,7 @@ CHOOSER
 data-source
 data-source
 "empirical (static)" "simulation (dynamic)"
-0
+1
 
 PLOT
 1092
@@ -602,7 +602,7 @@ SWITCH
 93
 show-links
 show-links
-0
+1
 1
 -1000
 
@@ -658,7 +658,7 @@ CHOOSER
 ethnicity
 ethnicity
 "WHITEB" "ASIAN" "BLACK" "OTHER"
-2
+1
 
 CHOOSER
 425
@@ -668,7 +668,7 @@ CHOOSER
 ses
 ses
 "LOW" "MID" "HIGH"
-2
+0
 
 CHOOSER
 318
