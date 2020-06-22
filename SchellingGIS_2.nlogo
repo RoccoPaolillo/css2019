@@ -244,6 +244,7 @@ to-report value-for-monitoring [dist]
     (measure = "ethnicity location quotient") [ [location-quotient (position (ethnicity) ethnicities)] of dist ]
     (measure = "ethnicity-SES obs utility") [ [observable-utility (position (ethnicity) ethnicities) (position (ses) sess) threshold-mean ] of dist ]
     (measure = "ethnicity-SES fraction") [ [ item (position (ses) sess) (item (position (ethnicity) ethnicities) popdata) ] of dist / [totalpop] of dist ]
+    (measure = "ethnicity-SES loc. quo.") [ [location-quotient-ses (position (ethnicity) ethnicities) (position (ses) sess)] of dist ]
     (measure = "avg threshold") [ mean-threshold [indivs] of dist ]
     (measure = "ethnicity avg threshold") [ mean-threshold [filter [y -> item 0 y = position (ethnicity) ethnicities] indivs] of dist ]
     (measure = "SES avg threshold") [ mean-threshold [filter [y -> item 1 y = position (ses) sess] indivs] of dist ]
@@ -272,6 +273,7 @@ end
 to-report dissimilarity-string [ethn-ind] report (word (precision (sum [totalpop * dissimilarity ethn-ind] of districts / sum [totalpop] of districts) 3)
   " (emp " (precision (sum [totalpop * dissimilarity ethn-ind] of staticempiricals / sum [totalpop] of staticempiricals) 3) ")") end
 to-report location-quotient [ethn-ind] report (item ethn-ind ethnicity-counts / item ethn-ind town-ethnicity-counts) / (totalpop / town-totalpop) end
+to-report location-quotient-ses [ethn-ind ses-ind] report (item ses-ind item ethn-ind popdata / item ses-ind item ethn-ind town-popdata) / (totalpop / town-totalpop) end
 to-report interaction [dists ethn-ind1 ethn-ind2] report ifelse-value (interaction-within = "all") [interaction-all districts ethn-ind1 ethn-ind2] [interaction-ses districts (position interaction-within sess) ethn-ind1 ethn-ind2] end
 to-report interaction-all [dists ethn-ind1 ethn-ind2] report sum [ (item ethn-ind1 ethnicity-counts / item ethn-ind1 town-ethnicity-counts) * (item ethn-ind2 ethnicity-counts / totalpop) ] of dists end
 to-report interaction-ses [dists ses-ind ethn-ind1 ethn-ind2 ] report sum [ ((item ses-ind item ethn-ind1 popdata) / (item ses-ind item ethn-ind1 town-popdata)) * ((item ethn-ind2 ethnicity-counts) / totalpop) ] of dists end
@@ -467,7 +469,7 @@ scale-down-pop
 scale-down-pop
 1
 20
-2.0
+1.0
 1
 1
 NIL
@@ -668,7 +670,7 @@ CHOOSER
 ses
 ses
 "LOW" "MID" "HIGH"
-0
+2
 
 CHOOSER
 318
@@ -677,8 +679,8 @@ CHOOSER
 124
 measure
 measure
-"--- for specific ethnicty ---" "ethnicity fraction" "ethnicity dissimilarity" "ethnicity location quotient" "ethnicity avg threshold" "ethnicity avg SES" "--- for specific SES ---" "SES fraction" "SES avg threshold" "--- for specific ethnicity and SES ---" "ethnicity-SES fraction" "ethnicity-SES avg thres" "ethnicity-SES obs utility" "--- local segregation indices ---" "ethnic Simpson" "ethnic entropy" "excess ethnic Simpson" "loss ethnic entropy" "--- other measures ---" "pop / mean pop" "pop / max pop" "avg threshold" "avg SES"
-1
+"--- for specific ethnicty ---" "ethnicity fraction" "ethnicity dissimilarity" "ethnicity location quotient" "ethnicity avg threshold" "ethnicity avg SES" "--- for specific SES ---" "SES fraction" "SES avg threshold" "--- for specific ethnicity and SES ---" "ethnicity-SES fraction" "ethnicity-SES loc. quo." "ethnicity-SES avg thres" "ethnicity-SES obs utility" "--- local segregation indices ---" "ethnic Simpson" "ethnic entropy" "excess ethnic Simpson" "loss ethnic entropy" "--- other measures ---" "pop / mean pop" "pop / max pop" "avg threshold" "avg SES"
+11
 
 SLIDER
 320
@@ -819,7 +821,7 @@ color-axis-max
 color-axis-max
 0.3
 8
-1.0
+3.5
 0.1
 1
 NIL
