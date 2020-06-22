@@ -331,6 +331,8 @@ lsoa_2001 <- lsoa_2011 %>% as_tibble() %>% select(LSOA01CD, LSOA01NM, LSOA11CD, 
 save(lsoa_2001,lsoa_2011,file = "R/lsoa_2001_lsoa_2011")
 lsoa_2001 %>% as_tibble() %>% select(-geometry) %>% write_csv("R/lsoa_2001.csv")
 lsoa_2011 %>% as_tibble() %>% select(-geometry) %>% write_csv("R/lsoa_2011.csv")
+towns01 %>% as_tibble() %>% write_csv("R/towns_2001.csv")
+towns11 %>% as_tibble() %>% write_csv("R/lowns_2011.csv")
 save(towns01, towns11, file = "R/towns01_towns11")
 
 # Bradford
@@ -342,17 +344,23 @@ write_csv(bradford_2011, "R/bradford_2011.csv")
 
 
 ### DESCRIPTIVES TO SHOW
+load("R/lsoa_2001_lsoa_2011")
+load("R/towns01_towns11")
+load("R/bradford_2001_2011")
+
 towns <- bind_rows(
-  towns01 %>% select(TCITY15NM, contains("segrtown_")) %>% mutate(year = 2001),
-  towns11 %>% select(TCITY15NM, contains("segrtown_")) %>% mutate(year = 2011)
+  towns01 %>% select(TCITY15NM, contains("segrtown_"), all=all_01) %>% mutate(year = 2001),
+  towns11 %>% select(TCITY15NM, contains("segrtown_"), all=all_11) %>% mutate(year = 2011)
 ) %>% select(-segrtown_avgsimpson2_ethgroupedses, -segrtown_simpson2_ethgroupedses) %>% 
   mutate(excess_avgsimpson2_ethgrouped = segrtown_avgsimpson2_ethgrouped - segrtown_simpson2_ethgrouped,
          excess_avgsimpson2_eth = segrtown_avgsimpson2_eth - segrtown_simpson2_eth) %>% 
   select(TCITY15NM, year, everything())
-towns %>% select(TCITY15NM, year, excess_avgsimpson2_ethgrouped, excess_avgsimpson2_eth) %>% 
-  arrange(desc(excess_avgsimpson2_eth)) %>% head(20)
-towns %>% select(TCITY15NM, year, segrtown_avgsimpson2_ethgrouped, segrtown_avgsimpson2_eth) %>% 
-  arrange(segrtown_avgsimpson2_eth) %>% head(20)
+towns %>% select(TCITY15NM, year, segrtown_avgsimpson2_ethgrouped, segrtown_simpson2_ethgrouped,segrtown_fraction_ethgrouped_asian,all) %>% 
+  arrange(desc(segrtown_fraction_ethgrouped_asian)) %>% filter(year == 2001) %>% head(20)
+
+
+towns %>% select(TCITY15NM, year, segrtown_avgsimpson_ethgrouped, segrtown_avgsimpson_eth) %>% 
+  arrange(segrtown_avgsimpson_eth) %>% head(20)
 towns %>% select(TCITY15NM, year, segrtown_simpson2_ethgrouped, segrtown_simpson2_eth) %>% 
   arrange(segrtown_simpson2_eth) %>% head(20)
 towns %>% select(TCITY15NM, year, segrtown_fraction_ethgrouped_asian) %>% 

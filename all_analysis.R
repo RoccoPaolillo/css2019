@@ -26,7 +26,7 @@ bradford@data <- bradford@data %>%
          tenure_socialh_p = (tenure_socialrent_01 + tenure_houseasoc_01)/total_tenure_01*100,
          tenure_socialrent_01_p = tenure_socialrent_01/total_tenure_01*100,
          tenure_private_01_p = tenure_private_01/total_tenure_01*100,
-         owned_hh_01_p = (tenure_owned_01/total_tenure_01)*100,
+         tenure_owned_01_p = (tenure_owned_01/total_tenure_01)*100,
          rented_hh_01_p = (tenure_rentfree_01/total_tenure_01)*100,
          socialhousing_hh_01_p = (tenure_socialrent_01/total_tenure_01)*100,
          private_01_p = (tenure_private_01/total_tenure_01)*100,
@@ -96,7 +96,8 @@ bradford@data <- bradford@data %>%
          turnover_01=(migr3+migr4)/all_01*100, # arrivals as a share of total
          netmig_01=all_01/(all_01+migr7-migr3-migr4), # net migration
          netmignw_01=all_01/(all_01+migr14-migr10-migr11), 
-         netmigw_01=all_01/(all_01+migr21-migr17-migr18)) %>% 
+         netmigw_01=all_01/(all_01+migr21-migr17-migr18),
+         migr11_p = migr11/all_01) %>% 
   mutate(nonwhitemig_01_p=ifelse(is.na(nonwhitemig_01_p), 0, nonwhitemig_01_p),
          whitemig_01_p=ifelse(is.na(whitemig_01_p), 0, whitemig_01_p))
 
@@ -209,6 +210,16 @@ predictor_str <- "high2_p + mid2_p + # NSSEC
   accom02_p + # Vacant houses
   hhcompten19_p + hhcompten46_p + hhcompten73_p + hhcompten100_p + hhcompten136_p + # Houshold compostion
   accom13_p + accom29_p + accom33_p # Type of housing"
+# THE CONTROLS STRING IS WORK IN PROGRESS 
+# controls_str <- "nssec1_1_p + nssec1_2_p + nssec2_p + #NSSEC
+#   unemp_01_p +
+#   age_0_to_4_01_p +
+#   turnover_01 + netmignw_01 + netmigw_01 +
+#   migr11_p +
+#   housedepri_34_01_p +
+#   tenure_owned_01_p"
+
+
 frml1 <- as.formula(paste("segrlsoa_simpson2_ethgrouped ~", predictor_str))
 frml2 <- as.formula(paste("segrlsoa_fraction_ethgrouped_asian ~", predictor_str))
 frml4 <- as.formula(paste("segrlsoa_fraction_ethgrouped_whiteb ~", predictor_str))
