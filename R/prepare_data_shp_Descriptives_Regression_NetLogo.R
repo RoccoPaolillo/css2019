@@ -289,8 +289,14 @@ lsoa11 <- segr_lsoa11 %>% select(LSOA11CD, LSOA11NM, TCITY15NM, ethnicgrouping, 
               values_from=c(segrlsoa_simpson, segrlsoa_simpson2, segrtown_simpson, segrtown_simpson2)) %>% 
   right_join(lsoa11, by = c("LSOA11CD","LSOA11NM","TCITY15NM"))
 # add average simpson to towns
-towns11 <- lsoa11 %>% select(TCITY15NM, fraction_11, contains("simpson")) %>% group_by(TCITY15NM) %>% 
-  summarize(across(contains("lsoa_simpson"),function(x) sum(x*fraction_11))) %>% 
+towns11 <- lsoa11 %>% select(TCITY15NM, fraction_11, fractionvalidses_11, contains("simpson")) %>% 
+  group_by(TCITY15NM) %>% 
+  summarize(segrlsoa_simpson_ethgroupedses = sum(segrlsoa_simpson_ethgroupedses*fractionvalidses_11),
+            segrlsoa_simpson_ethgrouped = sum(segrlsoa_simpson_ethgrouped*fraction_11),
+            segrlsoa_simpson_eth = sum(segrlsoa_simpson_eth*fraction_11),
+            segrlsoa_simpson2_ethgroupedses = sum(segrlsoa_simpson2_ethgroupedses*fractionvalidses_11),
+            segrlsoa_simpson2_ethgrouped = sum(segrlsoa_simpson2_ethgrouped*fraction_11),
+            segrlsoa_simpson2_eth = sum(segrlsoa_simpson2_eth*fraction_11)) %>% 
   left_join(towns11, by = "TCITY15NM")
 names(towns11) <- sub("lsoa_simpson","town_avgsimpson",names(towns11))
 
@@ -351,12 +357,16 @@ load("R/bradford_2001_2011")
 towns <- bind_rows(
   towns01 %>% select(TCITY15NM, contains("segrtown_"), all=all_01) %>% mutate(year = 2001),
   towns11 %>% select(TCITY15NM, contains("segrtown_"), all=all_11) %>% mutate(year = 2011)
-) %>% select(-segrtown_avgsimpson2_ethgroupedses, -segrtown_simpson2_ethgroupedses) %>% 
+) %>% #select(-segrtown_avgsimpson2_ethgroupedses, -segrtown_simpson2_ethgroupedses) %>% 
   mutate(excess_avgsimpson2_ethgrouped = segrtown_avgsimpson2_ethgrouped - segrtown_simpson2_ethgrouped,
          excess_avgsimpson2_eth = segrtown_avgsimpson2_eth - segrtown_simpson2_eth) %>% 
   select(TCITY15NM, year, everything())
+br <- towns %>% filter(TCITY15NM=="Bradford")
+
 towns %>% select(TCITY15NM, year, segrtown_avgsimpson2_ethgrouped, segrtown_simpson2_ethgrouped,segrtown_fraction_ethgrouped_asian,all) %>% 
   arrange(desc(segrtown_fraction_ethgrouped_asian)) %>% filter(year == 2001) %>% head(20)
+towns %>% select(TCITY15NM, year, segrtown_avgsimpson2_ethgrouped, segrtown_simpson2_ethgrouped,segrtown_fraction_eth_asia_pakistani_11,all) %>% 
+  arrange(desc(segrtown_fraction_eth_asia_pakistani_11)) %>% filter(year == 2001) %>% head(20)
 
 
 towns %>% select(TCITY15NM, year, segrtown_avgsimpson_ethgrouped, segrtown_avgsimpson_eth) %>% 
