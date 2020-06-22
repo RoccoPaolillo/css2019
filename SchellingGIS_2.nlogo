@@ -256,11 +256,11 @@ to-report value-for-monitoring [dist]
 end
 to-report simpson [p] report sum (map [x -> x ^ 2] p) end
 to-report entropy [p] report 0 - 1 / ln (length p) * (sum (map [x -> x * ifelse-value (x = 0) [0] [ln x]] p)) end
-to-report ethnic-simpson report simpson sublist (normalize-list ethnicity-counts) 0 (ifelse-value (others-ignore-ethn) [2] [3]) end
+to-report ethnic-simpson report simpson sublist (normalize-list ethnicity-counts) 0 (ifelse-value (others-ignore-ethn) [3] [4]) end
 to-report ethnic-entropy report entropy normalize-list ethnicity-counts end
 to-report ses-simpson report simpson normalize-list ses-counts end
 to-report ses-entropy report entropy normalize-list ses-counts end
-to-report town-ethnic-simpson report simpson sublist (normalize-list town-ethnicity-counts) 0 (ifelse-value (others-ignore-ethn) [2] [3]) end
+to-report town-ethnic-simpson report simpson sublist (normalize-list town-ethnicity-counts) 0 (ifelse-value (others-ignore-ethn) [3] [4]) end
 to-report town-ethnic-entropy report entropy normalize-list count-ethnicities town-popdata end
 to-report average-ses report (sum (map [[ x y ] -> x * y] ses-counts range length sess)) / totalpop / (length sess - 1) end
 to-report ethnicity-average-ses [ethn-ind] report ifelse-value (item ethn-ind ethnicity-counts > 0)
@@ -680,7 +680,7 @@ CHOOSER
 measure
 measure
 "--- for specific ethnicty ---" "ethnicity fraction" "ethnicity dissimilarity" "ethnicity location quotient" "ethnicity avg threshold" "ethnicity avg SES" "--- for specific SES ---" "SES fraction" "SES avg threshold" "--- for specific ethnicity and SES ---" "ethnicity-SES fraction" "ethnicity-SES loc. quo." "ethnicity-SES avg thres" "ethnicity-SES obs utility" "--- local segregation indices ---" "ethnic Simpson" "ethnic entropy" "excess ethnic Simpson" "loss ethnic entropy" "--- other measures ---" "pop / mean pop" "pop / max pop" "avg threshold" "avg SES"
-11
+15
 
 SLIDER
 320
@@ -821,7 +821,7 @@ color-axis-max
 color-axis-max
 0.3
 8
-3.5
+1.0
 0.1
 1
 NIL
