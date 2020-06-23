@@ -322,6 +322,10 @@ spmoransI_ch.test <-  data.frame(
             spmoran2_ch.test$p.value, 
             spmoran4_ch.test$p.value))
 
+save(lm.mod1, lm.mod2, lm.mod4, lm.mod1_ch, lm.mod2_ch, lm.mod4_ch, 
+     lagsarlm.mod1, lagsarlm.mod2, lagsarlm.mod4, lagsarlm.mod1_ch, lagsarlm.mod2_ch, lagsarlm.mod4_ch,
+     moransI, moransI_ch, spmoransI, spmoransI_ch, file = "R/modeloutput")
+load("R/modeloutput")
 print(summary(lm.mod1), signif.stars = TRUE)
 print(summary(lm.mod2), signif.stars = TRUE)
 print(summary(lm.mod4), signif.stars = TRUE)
