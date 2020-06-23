@@ -195,11 +195,11 @@ predictor_str <- "nssec1_1_p + nssec1_2_p + nssec2_p + nssec3_p + nssec4_p + #(r
 
 
 
-frml1 <- as.formula(paste("segrlsoa_simpson2_ethgrouped ~", predictor_str))
-frml2 <- as.formula(paste("segrlsoa_fraction_ethgrouped_asian ~", predictor_str))
-frml4 <- as.formula(paste("segrlsoa_fraction_ethgrouped_whiteb ~", predictor_str))
-frml2lq <- as.formula(paste("segrlsoa_lq_ethgrouped_asian ~", predictor_str))
-frml4lq <- as.formula(paste("segrlsoa_lq_ethgrouped_whiteb ~", predictor_str))
+frml1 <- as.formula(paste("segrlsoa_simpson2_ethgrouped_11 ~", predictor_str))
+frml2 <- as.formula(paste("segrlsoa_fraction_ethgrouped_asian_11 ~", predictor_str))
+frml4 <- as.formula(paste("segrlsoa_fraction_ethgrouped_whiteb_11 ~", predictor_str))
+frml2lq <- as.formula(paste("segrlsoa_lq_ethgrouped_asian_11 ~", predictor_str))
+frml4lq <- as.formula(paste("segrlsoa_lq_ethgrouped_whiteb_11 ~", predictor_str))
 frml1_ch <- as.formula(paste("change_segrlsoa_simpson2_ethgrouped ~", predictor_str))
 frml2_ch <- as.formula(paste("change_segrlsoa_fraction_ethgrouped_asian ~", predictor_str))
 frml4_ch <- as.formula(paste("change_segrlsoa_fraction_ethgrouped_whiteb ~", predictor_str))
