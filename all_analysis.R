@@ -8,13 +8,19 @@ library(CARBayes)
 library(tmap)
 library(spatialreg)
 
-
-lsoa_2001_lsoa_2011 <- load("R/lsoa_2001_lsoa_2011")
+load("R/lsoa_2001_lsoa_2011")
 
 # SHAPE files
 bradford <- readOGR(dsn = "shp_NetLogo/Bradford/", layer = "Bradford", stringsAsFactors=F)
 bradford@data <- bradford@data %>% rename(LSOA11CD=LSOA11C)
 bradford@data <- left_join(bradford@data, lsoa_2001, by = (GEOID = "LSOA11CD"))
+
+#Create neighborhood matrix in different formats for different functions
+W.nb.con <- poly2nb(bradford, row.names = rownames(bradford@data), snap=0.005)
+W_mat_con <- nb2mat(W.nb.con, style="B", zero.policy=TRUE)
+W.list.con <- nb2listw(W.nb.con, style="B", zero.policy = TRUE)
+W.mat_bradford <- W_mat_con
+W.list_bradford <- W.list.con
 
 #computing the shares for the different variables
 bradford@data <- bradford@data %>% 
@@ -23,63 +29,85 @@ bradford@data <- bradford@data %>%
          housdepri_2d_01_p = (housdepri_2d_01/(housdepri_no_01 + housdepri_1d_01 + housdepri_2d_01 + housdepri_3d_01 + housdepri_4d_01))*100,
          housdepri_1d_01_p = (housdepri_1d_01/(housdepri_no_01 + housdepri_1d_01 + housdepri_2d_01 + housdepri_3d_01 + housdepri_4d_01))*100,
          housdepri_no_01_p = (housdepri_no_01/(housdepri_no_01 + housdepri_1d_01 + housdepri_2d_01 + housdepri_3d_01 + housdepri_4d_01))*100,
-         tenure_socialh_p = (tenure_socialrent_01 + tenure_houseasoc_01)/total_tenure_01*100,
-         tenure_socialrent_01_p = tenure_socialrent_01/total_tenure_01*100,
-         tenure_private_01_p = tenure_private_01/total_tenure_01*100,
-         tenure_owned_01_p = (tenure_owned_01/total_tenure_01)*100,
-         rented_hh_01_p = (tenure_rentfree_01/total_tenure_01)*100,
-         socialhousing_hh_01_p = (tenure_socialrent_01/total_tenure_01)*100,
-         private_01_p = (tenure_private_01/total_tenure_01)*100,
+         housdepri_1d2d_01_p = (housdepri_1d_01+housdepri_2d_01)/(housdepri_no_01 + housdepri_1d_01 + housdepri_2d_01 + housdepri_3d_01 + housdepri_4d_01)*100,
+         housdepri_3d4d_01_p = (housdepri_3d_01+housdepri_4d_01)/(housdepri_no_01 + housdepri_1d_01 + housdepri_2d_01 + housdepri_3d_01 + housdepri_4d_01)*100,
+         total_tenure_new_01=tenure_socialrent_01 + tenure_houseasoc_01 + tenure_private_01 + tenure_owned_01 + tenure_rentfree_01,
+         tenure_socialh_01_p = (tenure_socialrent_01 + tenure_houseasoc_01)/total_tenure_new_01 *100,
+         tenure_private_01_p = (tenure_private_01/total_tenure_new_01)*100,
+         tenure_owned_01_p = (tenure_owned_01/total_tenure_new_01)*100,
+         tenure_rentfree_01_p = (tenure_rentfree_01/total_tenure_new_01)*100,         
          compten_01_p = (total_compten_01/total_tenure_01)*100,
-         quali_4n5_01_p = (quali_4n5_01/(quali_no_01 + quali_1_01 + quali_2_01 + quali_3_01 + quali_4n5_01 + quali_other_01))*100,
-         quali_3_01_p = (quali_3_01/(quali_no_01 + quali_1_01 + quali_2_01 + quali_3_01 + quali_4n5_01 + quali_other_01))*100,
-         quali_2_01_p = (quali_2_01/(quali_no_01 + quali_1_01 + quali_2_01 + quali_3_01 + quali_4n5_01 + quali_other_01))*100,
-         quali_1_01_p = (quali_1_01/(quali_no_01 + quali_1_01 + quali_2_01 + quali_3_01 + quali_4n5_01 + quali_other_01))*100,
-         quali_no_01_p = (quali_no_01/(quali_no_01 + quali_1_01 + quali_2_01 + quali_3_01 + quali_4n5_01 + quali_other_01))*100,
+         quali_4n5_01_p = (quali_4n5_01/(quali_no_01 + quali_1_01 + quali_2_01 + quali_3_01 + quali_4n5_01))*100,
+         quali_3_01_p = (quali_3_01/(quali_no_01 + quali_1_01 + quali_2_01 + quali_3_01 + quali_4n5_01))*100,
+         quali_2_01_p = (quali_2_01/(quali_no_01 + quali_1_01 + quali_2_01 + quali_3_01 + quali_4n5_01))*100,
+         quali_1_01_p = (quali_1_01/(quali_no_01 + quali_1_01 + quali_2_01 + quali_3_01 + quali_4n5_01))*100,
+         quali_no_01_p = (quali_no_01/(quali_no_01 + quali_1_01 + quali_2_01 + quali_3_01 + quali_4n5_01))*100,
+         quali_no1_01_p = ((quali_no_01 + quali_1_01)/(quali_no_01 + quali_1_01 + quali_2_01 + quali_3_01 + quali_4n5_01))*100,
          age_0_to_4_01_p = (age_0_to_4_01/all_01)*100,
-         single_01_p = (marstat_sing_01/all_01)*100,
-         divorcedsep_01_p = ((marstat_sep_01+marstat_div_01)/all_01)*100,
+         marstat_tot_01 = marstat_sing_01 + marstat_marr_01 + marstat_remarr_01 + marstat_sep_01 + marstat_div_01 + marstat_wid_01, 
+         single_01_p = (marstat_sing_01/marstat_tot_01)*100,
+         divorcedsep_01_p = ((marstat_sep_01+marstat_div_01)/marstat_tot_01)*100,
          married_01_p = ((marstat_marr_01)/all1674_01)*100,
-         nssec1_1_p = ((nssec1_1)/all1674_01)*100,
-         nssec1_2_p = ((nssec1_2)/all1674_01)*100,
-         nssec2_p = ((nssec2)/all1674_01)*100,
-         nssec3_p = ((nssec3)/all1674_01)*100,
-         nssec4_p = ((nssec4)/all1674_01)*100,
-         nssec6_p = ((nssec6)/all1674_01)*100,
-         nssec7_p = ((nssec7)/all1674_01)*100,
+         all1674valid_01=nssec1_1 + nssec1_2 + nssec2 + nssec3 + nssec4 + nssec5 + nssec6 + nssec7,
+         nssec1_1_p = ((nssec1_1)/all1674valid_01)*100,
+         nssec1_2_p = ((nssec1_2)/all1674valid_01)*100,
+         nssec2_p = ((nssec2)/all1674valid_01)*100,
+         nssec3_p = ((nssec3)/all1674valid_01)*100,
+         nssec4_p = ((nssec4)/all1674valid_01)*100,
+         nssec6_p = ((nssec6)/all1674valid_01)*100,
+         nssec7_p = ((nssec7)/all1674valid_01)*100,
          high2_p = high/(high+mid+low)*100,
          mid2_p = mid/(high+mid+low)*100,
          low2_p = low/(high+mid+low)*100,
-         highses_01_p = ((nssec1_1+nssec1_2)/all1674_01)*100,
-         lowses_01_p = ((nssec5+nssec6+nssec7)/all1674_01)*100,
-         partemp_01_p = (partemp/all1674_01)*100,
-         fullemp_01_p = (fullemp/all1674_01)*100,
-         selfemp_01_p = (selfemp/all1674_01)*100,
-         unemp_01_p = (unemp/all1674_01)*100,
+         highses_01_p = ((nssec1_1+nssec1_2)/all1674valid_01)*100,
+         midses_01_p = ((nssec3+nssec4)/all1674valid_01)*100,
+         lowses_01_p = ((nssec5+nssec6+nssec7)/all1674valid_01)*100,
+         emp = partemp + fullemp + selfemp,
+         unemp25plus = unemp - unemp1624,
+         student = activestud + ictivestud,
+         caresickother = caring + sick + otherict,
+         active = emp + unemp,  
+         partemp_01_p = (partemp/active)*100,
+         fullemp_01_p = (fullemp/active)*100,
+         selfemp_01_p = (selfemp/active)*100,
+         unemp_01_p = (unemp/active)*100,
+         unemp1624_01_p = (unemp1624/active)*100,
+         unemp50plus_01_p = (unemp50plus/active)*100,
+         unemp25plus_01_p = (unemp25plus/active)*100,
+         emp_01_p = (emp/active)*100,
+         ltunemp2_01_p = (ltunemp2/active)*100,
+         active_01_p = (active/all1674_01)*100,
+         caresickother_01_p=(caresickother/all1674_01)*100,
+         student_01_p = (student/all1674_01)*100,
          activestud_01_p = (activestud/all1674_01)*100,
          retired_01_p = (retired/all1674_01)*100,
          ictivestud_01_p = (ictivestud/all1674_01)*100,
          caring_01_p = (caring/all1674_01)*100,
          sick_01_p = (sick/all1674_01)*100,
          otherict_01_p = (otherict/all1674_01)*100,
-         unemp1624_01_p = (unemp1624/all1674_01)*100,
-         unemp50plus_01_p = (unemp50plus/all1674_01)*100,
          neverw2_01_p = (neverw2/all1674_01)*100,
-         ltunemp2_01_p = (ltunemp2/all1674_01)*100,
-         familynochild_01_p = (hhcompten64/total_house_01)*100,
-         familydepchild_01_p = (hhcompten73/total_house_01)*100,
-         familynodepchild_01_p = (hhcompten82/total_house_01)*100,
-         loneparentsdepchild_01_p = (hhcompten100/total_house_01)*100,
-         loneparentsnodepchild_01_p = (hhcompten109/total_house_01)*100,
-         otherhh_01_p = (hhcompten127/total_house_01)*100,
-         students_01_p = (hhcompten136/total_house_01)*100,
-         hhcompten19_p  =  hhcompten19/total_house_01*100,
-         hhcompten46_p  =  hhcompten46/total_house_01*100,
-         hhcompten73_p  =  hhcompten73/total_house_01*100,
-         hhcompten100_p = hhcompten100/total_house_01*100,
-         hhcompten136_p = hhcompten136/total_house_01*100,
-         nonwhitemig_01_p = (migr11/migr4)*100,
-         whitemig_01_p = 100 - (migr11/migr4)*100,
+         total_compten_new_01=hhcompten19 +hhcompten28 +hhcompten46 +hhcompten64 +hhcompten73 +hhcompten82 +hhcompten100 +hhcompten109 +hhcompten127 +hhcompten136+ hhcompten145 +hhcompten154,
+         hh65plus = hhcompten19+hhcompten46,
+         hhmultchild = hhcompten73+hhcompten82+hhcompten127,
+         hhloneparent = hhcompten100+hhcompten109,
+         hhsingle064 = hhcompten28,
+         hh65plus_01_p=((hh65plus)/(total_compten_new_01))*100,
+         hhmultchild_01_p=((hhmultchild)/(total_compten_new_01))*100,
+         hhloneparent_01_p=((hhloneparent)/(total_compten_new_01))*100, 
+         hhsingle064_01_p=((hhsingle064)/(total_compten_new_01))*100, 
+         hhother_01_p=((total_compten_new_01-hh65plus-hhmultchild-hhloneparent-hhsingle064)/(total_compten_new_01))*100,
+         familynochild_01_p = (hhcompten64/total_compten_new_01)*100,
+         familydepchild_01_p = (hhcompten73/total_compten_new_01)*100,
+         familynodepchild_01_p = (hhcompten82/total_compten_new_01)*100,
+         loneparentsdepchild_01_p = (hhcompten100/total_compten_new_01)*100,
+         loneparentsnodepchild_01_p = (hhcompten109/total_compten_new_01)*100,
+         otherhh_01_p = (hhcompten127/total_compten_new_01)*100,
+         students_01_p = (hhcompten136/total_compten_new_01)*100,
+         hhcompten19_p  =  hhcompten19/total_compten_new_01*100,
+         hhcompten46_p  =  hhcompten46/total_compten_new_01*100,
+         hhcompten73_p  =  hhcompten73/total_compten_new_01*100,
+         hhcompten100_p = hhcompten100/total_compten_new_01*100,
+         hhcompten136_p = hhcompten136/total_compten_new_01*100,
          accom02_p = accom02/total_accom_01*100,
          accom13_p = accom13/total_accom_01*100,
          accom29_p = accom29/total_accom_01*100,
@@ -93,131 +121,78 @@ bradford@data <- bradford@data %>%
          flatincommercial_01_p = (accom37/total_accom_01)*100,
          caravan_01_p = (accom41/total_accom_01)*100,
          shareddwelling_01_p = (accom45/total_accom_01)*100,
+         house_01_p=(accom13+accom17+accom21)/(total_accom_01)*100,
+         flat_01_p=(accom29+accom33+accom37)/(total_accom_01)*100,
+         accomother_01_p=(accom41+accom45)/(total_accom_01)*100,
+         nonwhitemig_01_p = (migr11/migr4)*100,
+         whitemig_01_p = 100 - (migr11/migr4)*100,
          turnover_01=(migr3+migr4)/all_01*100, # arrivals as a share of total
          netmig_01=all_01/(all_01+migr7-migr3-migr4), # net migration
-         netmignw_01=all_01/(all_01+migr14-migr10-migr11), 
+         netmignw_01=all_01/(all_01+migr14-migr10-migr11),
          netmigw_01=all_01/(all_01+migr21-migr17-migr18),
-         migr11_p = migr11/all_01) %>% 
+         migr11_p = migr11/all_01*100) %>% 
   mutate(nonwhitemig_01_p=ifelse(is.na(nonwhitemig_01_p), 0, nonwhitemig_01_p),
          whitemig_01_p=ifelse(is.na(whitemig_01_p), 0, whitemig_01_p))
 
-#Create neighborhood matrix in different formats for different functions
-W.nb.con <- poly2nb(bradford, row.names = rownames(bradford@data), snap=0.005)
-W_mat_con <- nb2mat(W.nb.con, style="B", zero.policy=TRUE)
-W.list.con <- nb2listw(W.nb.con, style="B", zero.policy = TRUE)
-# no_nb <- which(rowSums(W_mat_con) == 0)
-# nonb_W <- W_mat_con[-no_nb, -no_nb]
-# bradford <- bradford[-no_nb,]
-#######bradford <- bradford
-# nonb_Wnb <- poly2nb(bradford, row.names = rownames(bradford@data))
-# W.mat_bradford <- nb2mat(nonb_Wnb, style="B")
-# W.list_bradford <- nb2listw(nonb_Wnb, style="B")
-W.mat_bradford <- W_mat_con
-W.list_bradford <- W.list.con
+# Initial formula 
+# This is the model with all variables; the system should automatically drop one category (the refrence category) among those that sum up to 100%.
+# Of course, this is something we normally do ourselves; but just so that we are clear that the variables we leave out are the reference categories
+# List:
+# nssec1_1_p + nssec1_2_p + nssec2_p + nssec3_p + nssec4_p lowses_01_p (sum up to 100%)
+# quali_no1_01_p + quali_2_01_p + quali_3_01_p + quali_4n5_01_p  (sum up to 100%)
+# emp_p unemp1624_p unemp25plus_01_p  (sum up to 100%)
+# active_01_p caresickother_01_p student_01_p retired_01_p  (sum up to 100%)
+# housdepri_no_01_p + housdepri_12d_01_p + housdepri_34d_01_p  (sum up to 100%)
+# age_0_to_4_01_p
+# hh65plus_01_p hhmultchild_01_p hhsingle064_01_p hhother_01_p  (sum up to 100%)
+# tenure_socialh_01_p + tenure_private_01_p + tenure_owned_01_p + tenure_rentfree_01_p  (sum up to 100%)
+# vacanthouses_01_p
+# house_01_p flat_01_p accomother_01_p  (sum up to 100%)
+# turnover_01
+# netmignw_01
+# netmigw_01
+# migr11_p
 
-# #formulas
-# frml1 <- segrlsoa_simpson_ethgrouped ~ 
-#   change_price_00_gr +
-#   housdepri_4d_01_p + 
-#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-#   quali_4n5_01_p + quali_no_01_p + 
-#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-#   nssec1_1_p + nssec7_p + 
-#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
-#   nonwhitemig_01_p +
-#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p +
-#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
-# frml1_ch <- change_segrlsoa_simpson_ethgrouped ~ 
-#   change_price_00_gr +
-#   housdepri_4d_01_p + 
-#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-#   quali_4n5_01_p + quali_no_01_p + 
-#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-#   nssec1_1_p + nssec7_p + 
-#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
-#   nonwhitemig_01_p +
-#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p +
-#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
-# 
-# frml2 <- segrlsoa_fraction_ethgrouped_asian ~ 
-#   change_price_00_gr +
-#   housdepri_4d_01_p + 
-#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-#   quali_4n5_01_p + quali_no_01_p + 
-#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-#   nssec1_1_p + nssec7_p + 
-#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
-#   nonwhitemig_01_p + 
-#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
-#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
-# 
-#   frml2_ch <- change_segrlsoa_fraction_ethgrouped_asian ~ 
-#   change_price_00_gr +
-#   housdepri_4d_01_p + 
-#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-#   quali_4n5_01_p + quali_no_01_p + 
-#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-#   nssec1_1_p + nssec7_p + 
-#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
-#   nonwhitemig_01_p + 
-#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
-#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
-# 
-# frml3 <- segrlsoa_fraction_ethgrouped_black ~ 
-#   change_price_00_gr +
-#   housdepri_4d_01_p + 
-#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-#   quali_4n5_01_p + quali_no_01_p + 
-#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-#   nssec1_1_p + nssec7_p + 
-#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p + neverw2_01_p + ltunemp2_01_p + 
-#   nonwhitemig_01_p + 
-#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
-#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
-# 
-# frml4 <- segrlsoa_fraction_ethgrouped_whiteb ~ 
-#   change_price_00_gr +
-#   housdepri_4d_01_p + 
-#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-#   quali_4n5_01_p + quali_no_01_p + 
-#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-#   nssec1_1_p + nssec7_p + 
-#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
-#   nonwhitemig_01_p + 
-#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
-#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
-# 
-# frml4_ch <- change_segrlsoa_fraction_ethgrouped_whiteb ~ 
-#   change_price_00_gr +
-#   housdepri_4d_01_p + 
-#   owned_hh_01_p + rented_hh_01_p + socialhousing_hh_01_p + 
-#   quali_4n5_01_p + quali_no_01_p + 
-#   age_0_to_4_01_p + single_01_p + divorcedsep_01_p + married_01_p + 
-#   nssec1_1_p + nssec7_p + 
-#   partemp_01_p  + fullemp_01_p + selfemp_01_p + retired_01_p + unemp1624_01_p + unemp50plus_01_p  + neverw2_01_p + ltunemp2_01_p + 
-#   nonwhitemig_01_p + 
-#   vacanthouses_01_p + detachedhouse_01_p + flatinshared_01_p + shareddwelling_01_p + 
-#   familydepchild_01_p + loneparentsdepchild_01_p + students_01_p
+initialpredictor_str <- "nssec1_1_p + nssec1_2_p + nssec2_p + nssec3_p + nssec4_p + lowses_01_p + #(sum up to 100%)
+                  quali_no1_01_p + quali_2_01_p + quali_3_01_p + quali_4n5_01_p + #(sum up to 100%)
+                  emp_01_p + unemp1624_01_p + unemp25plus_01_p + #(sum up to 100%)
+                  active_01_p + caresickother_01_p + student_01_p + retired_01_p + #(sum up to 100%)
+                  housdepri_no_01_p + housdepri_1d2d_01_p + housdepri_3d4d_01_p + # (sum up to 100%)
+                  age_0_to_4_01_p + 
+                  hh65plus_01_p + hhmultchild_01_p + hhsingle064_01_p + hhother_01_p + #(sum up to 100%)
+                  tenure_socialh_01_p + tenure_private_01_p + tenure_owned_01_p + tenure_rentfree_01_p + #(sum up to 100%)
+                  vacanthouses_01_p +
+                  house_01_p + flat_01_p + accomother_01_p + #(sum up to 100%)
+                  turnover_01 + netmignw_01 + netmigw_01 + migr11_p"
 
-# New formulas 
-predictor_str <- "high2_p + mid2_p + # NSSEC 
-  netmignw_01 + netmigw_01 + # Migration
-  age_0_to_4_01_p + # Fertility
-  quali_1_01_p + quali_2_01_p + # Education
-  partemp_01_p + unemp1624_01_p + unemp50plus_01_p + # Activity
-  housdepri_1d_01_p + # House deprivation
-  tenure_socialh_p + tenure_private_01_p + # Tenure
-  accom02_p + # Vacant houses
-  hhcompten19_p + hhcompten46_p + hhcompten73_p + hhcompten100_p + hhcompten136_p + # Houshold compostion
-  accom13_p + accom29_p + accom33_p # Type of housing"
-# THE CONTROLS STRING IS WORK IN PROGRESS 
-# controls_str <- "nssec1_1_p + nssec1_2_p + nssec2_p + #NSSEC
-#   unemp_01_p +
-#   age_0_to_4_01_p +
-#   turnover_01 + netmignw_01 + netmigw_01 +
-#   migr11_p +
-#   housedepri_34_01_p +
-#   tenure_owned_01_p"
+# Formula I came up with, after exploring with linear regression model
+# nssec1_1_p + nssec1_2_p + nssec2_p + nssec3_p + nssec4_p (ref=lowses_01_p)
+# unemp1624_p unemp25plus_01_p (ref=emp)
+# housdepri_34d_01_p (ref=houses with 2 deprivations or less)
+# age_0_to_4_01_p (fertility measure; ref=people above 4 years old)
+# hhmultchild_01_p (ref=other hh types)
+# tenure_socialh_01_p (ref=other tenures)
+# vacanthouses_01_p (ref=occupied and holiday homes)
+# house_01_p (ref=flats and other house types)
+# netmignw_01 (net migration of non-whites)
+# netmigw_01 (net migration of whites)
+# migr11_p (arrivals of non-whites from abroad in the last year)
+
+predictor_str <- "nssec1_1_p + nssec1_2_p + nssec2_p + nssec3_p + nssec4_p + #(ref=lowses_01_p)
+                  unemp1624_01_p + unemp25plus_01_p + #(ref=emp)
+                  housdepri_3d4d_01_p + #(ref=houses with 2 deprivations or less)
+                  age_0_to_4_01_p + #(fertility measure; ref=people above 4 years old)
+                  hhmultchild_01_p + #(ref=other hh types)
+                  tenure_socialh_01_p + #(ref=other tenures)
+                  vacanthouses_01_p + #(ref=occupied and holiday homes)
+                  house_01_p + #(ref=flats and other house types)
+                  netmignw_01 + #(net migration of non-whites)
+                  netmigw_01 + #(net migration of whites)
+                  migr11_p #(arrivals of non-whites from abroad in the last year)"
+
+# NOTE=inactivity highly correlated with unemployment; education highly correlated with SES (hence dropped)
+# unemployment also related to deprivation34 and SES, but I rather leave it and see what you get
+
 
 
 frml1 <- as.formula(paste("segrlsoa_simpson2_ethgrouped ~", predictor_str))
@@ -232,10 +207,10 @@ frml4_ch <- as.formula(paste("change_segrlsoa_fraction_ethgrouped_whiteb ~", pre
 lm.mod1 <- lm(formula=frml1, data=bradford@data)
 lm.mod1_ch <- lm(formula=frml1_ch, data=bradford@data)
 lm.mod2 <- lm(formula=frml2, data=bradford@data)
-lm.mod2lq <- lm(formula=frml2lq, data=bradford@data)
+lm.mod2lq <- lm(formula=frml2lq, data=bradford@data) # To check that coefficients are exactly a scaled version of frml2
 lm.mod2_ch <- lm(formula=frml2_ch, data=bradford@data)
 lm.mod4 <- lm(formula=frml4, data=bradford@data)
-lm.mod4lq <- lm(formula=frml4lq, data=bradford@data)
+lm.mod4lq <- lm(formula=frml4lq, data=bradford@data) # To check that coefficients are exactly a scaled version of frml4
 lm.mod4_ch <- lm(formula=frml4_ch, data=bradford@data)
 lagsarlm.mod1 <-    lagsarlm(formula=frml1   , data=bradford@data, listw = W.list_bradford)
 lagsarlm.mod1_ch <- lagsarlm(formula=frml1_ch, data=bradford@data, listw = W.list_bradford)
@@ -366,16 +341,12 @@ spmoransI_ch
 
 
 
-
-
-plot(bradford@data$partemp_01_p,bradford@data$change_segrlsoa_simpson2_ethgrouped)
-plot(bradford@data$partemp_01_p,bradford@data$segrlsoa_simpson2_ethgrouped)
-plot(bradford@data$netmignw_01,bradford@data$change_segrlsoa_fraction_ethgrouped_asian)
-plot(bradford@data$netmignw_01,bradford@data$segrlsoa_fraction_ethgrouped_asian)
-
 #Bayesian CARleroux spatial models
 
 model.spatial1 <- S.CARleroux(formula=frml1, data=bradford@data,
+                              family="gaussian",W=W.mat_bradford,
+                              burnin=20000,n.sample=100000,thin=10)
+model.spatial1_ch <- S.CARleroux(formula=frml1_ch, data=bradford@data,
                               family="gaussian",W=W.mat_bradford,
                               burnin=20000,n.sample=100000,thin=10)
 model.spatial2 <- S.CARleroux(formula=frml2, data=bradford@data,
@@ -384,18 +355,20 @@ model.spatial2 <- S.CARleroux(formula=frml2, data=bradford@data,
 model.spatial2_ch <- S.CARleroux(formula=frml2_ch, data=bradford@data,
                                  family="gaussian",W=W.mat_bradford,
                                  burnin=20000,n.sample=100000,thin=10)
-model.spatial3 <- S.CARleroux(formula=frml3, data=bradford@data,
+model.spatial4 <- S.CARleroux(formula=frml4, data=bradford@data,
                               family="gaussian",W=W.mat_bradford,
                               burnin=20000,n.sample=100000,thin=10)
-model.spatial4 <- S.CARleroux(formula=frml4, data=bradford@data,
+model.spatial4_ch <- S.CARleroux(formula=frml4_ch, data=bradford@data,
                               family="gaussian",W=W.mat_bradford,
                               burnin=20000,n.sample=100000,thin=10)
 #models
 m_bradford_new <- cbind(model.spatial1$summary.results[,1:3],
-                    model.spatial2$summary.results[,1:3], 
-                    model.spatial3$summary.results[,1:3],
+                    model.spatial2$summary.results[,1:3],
                     model.spatial4$summary.results[,1:3])
 saveRDS(m_bradford_new, file="D:\\PhD\\Projects\\CZ, JL, RP, SS and ARS - segregation\\Abstract\\m_bradford_new.RDS")
+
+
+### NOT EDITED AND CHECKED IF RUNNING
 
 #store results of models back into the map
 model.fitted_bradford01 <- data.frame(LSOA11CD = names(table(bradford@data$LSOA11CD)), 
