@@ -350,7 +350,7 @@ to load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks [TOW TH-M TH-SD TIEHOUSE B-E
 end
 
 to load-gisdataset
-  set townshp gis:load-dataset (word "shp_NetLogo/" town "/" town ".shp")
+  set townshp gis:load-dataset (word "LAD_shp_NetLogo/" town "/" town ".shp")
   gis:set-world-envelope (gis:envelope-union-of (gis:envelope-of townshp))
 end
 @#$#@#$#@
@@ -469,7 +469,7 @@ scale-down-pop
 scale-down-pop
 1
 20
-1.0
+10.0
 1
 1
 NIL
@@ -680,7 +680,7 @@ CHOOSER
 measure
 measure
 "--- for specific ethnicty ---" "ethnicity fraction" "ethnicity dissimilarity" "ethnicity location quotient" "ethnicity avg threshold" "ethnicity avg SES" "--- for specific SES ---" "SES fraction" "SES avg threshold" "--- for specific ethnicity and SES ---" "ethnicity-SES fraction" "ethnicity-SES loc. quo." "ethnicity-SES avg thres" "ethnicity-SES obs utility" "--- local segregation indices ---" "ethnic Simpson" "ethnic entropy" "excess ethnic Simpson" "loss ethnic entropy" "--- other measures ---" "pop / mean pop" "pop / max pop" "avg threshold" "avg SES"
-15
+1
 
 SLIDER
 320
