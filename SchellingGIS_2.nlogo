@@ -7,6 +7,7 @@ globals [ townshp ; shapefiles
           town-popdata town-ethnicity-counts town-ses-counts town-totalpop all-thresholds ; lists of constants for statistical purposes
           decisions-count forced-moves-count searches-count moves-count ]
 districts-own [ id popdata ethnicity-counts ses-counts totalpop maxpop ses-maxpop
+                perc-sim-eth perc-sim-ses
                 indivs] ; list of list of length totalpop with each sub list representing one individual in the form [ethn-ind ses-ind thresh]
 staticempiricals-own [ id popdata ethnicity-counts ses-counts totalpop maxpop ses-maxpop indivs] ; mirrors districts for statistical purposes and on the fly comparison
 ; Data formats: popdata [ [whiteb_low whiteb_mid whiteb_high] [asian_low asian_mid asian_high] [black_low black_mid black_high] [other_low other_mid other_high] ]
@@ -17,12 +18,8 @@ staticempiricals-own [ id popdata ethnicity-counts ses-counts totalpop maxpop se
 
 ;; SETUP PROCEDURES
 
-;"WHTB_HG":"103.0"]["BLCK_LW":"11.0"]["OTHR_MD":"12.0"]["ASN_HGH":"13.0"]["WHTB_MD":"61.0"]["OTHR_HG":"34.0"]["WHTB_LW":"108.0"]["ASIN_LW":"12.0"]["BLCK_HG":"5.0"]["ALLV_11":"399.0"]["LSOA01C":"E01017137"]["BLCK_MD":"4.0"]["OTHR_LW":"33.0"]["ASIN_MD":"3.0"]}}
-
-
 to setup
   clear-all
-  ask patches [set pcolor 68]
   load-gisdataset
   let vars [ "WHTB_HG" "WHTB_MD" "WHTB_LW" "ASN_HGH" "ASIN_MD" "ASIN_LW" "BLCK_HG" "BLCK_MD" "BLCK_LW" "OTHR_HG" "OTHR_MD" "OTHR_LW" ]
 ;  let vars [ "WHTB_HG" "WHTB_MD" "WHTB_LW" "ASN_HGH" "ASIN_MD" "ASIN_LW" "BLCK_HG" "BLCK_MD" "BLCK_LW" "OTHRTH_H" "OTHRTH_M" "OTHRTH_L" ]
@@ -50,6 +47,11 @@ to setup
   print-town-data
   visualize
   reset-ticks
+end
+
+to load-gisdataset
+  set townshp gis:load-dataset (word "LAD_shp_NetLogo/" town "/" town ".shp")
+  gis:set-world-envelope (gis:envelope-union-of (gis:envelope-of townshp))
 end
 
 to create-district-neighbor-links
@@ -97,6 +99,7 @@ end
 to go
   reset-timer
   set decisions-count 0 set forced-moves-count 0 set searches-count 0 set moves-count 0
+  ask districts [compute-percentage-similar]
   repeat town-totalpop [ ask one-of districts [
     let nummoves totalpop / (town-totalpop / count districts)
     repeat floor (nummoves) [individual-decides]
@@ -112,6 +115,11 @@ to go
   if ticks = stop-tick [visualize stop]
 end
 
+to compute-percentage-similar
+  set perc-sim-eth (list percent-similar-ethnicity-neighborhood 0  percent-similar-ethnicity-neighborhood 1  percent-similar-ethnicity-neighborhood 2  percent-similar-ethnicity-neighborhood 3)
+  set perc-sim-ses (list percent-similar-ses-neighborhood 0  percent-similar-ses-neighborhood 1  percent-similar-ses-neighborhood 2)
+end
+
 to individual-decides ; in a districts select a "virtual" person and let this decide to move
   set decisions-count decisions-count + 1
   let indiv-ind random length indivs
@@ -120,14 +128,14 @@ to individual-decides ; in a districts select a "virtual" person and let this de
   let ses-ind item 1 indiv
   ifelse random-float 1 < turnover [
     set forced-moves-count forced-moves-count + 1
-    let option ifelse-value (tie-houses-to-ses) [random-ses-option ses-ind] [random-option]
+    let option ifelse-value (tie-houses-to-ses) [random-ses-option ethn-ind ses-ind] [random-option ethn-ind ses-ind]
     individual-moves option ethn-ind ses-ind indiv-ind indiv
   ] [
     let thresh item 2 indiv
     let U_home utility ethn-ind ses-ind thresh
     if U_home < 0 or always-search [
       set searches-count searches-count + 1
-      let option ifelse-value (tie-houses-to-ses) [random-ses-option ses-ind] [random-option]
+      let option ifelse-value (tie-houses-to-ses) [random-ses-option ethn-ind ses-ind] [random-option ethn-ind ses-ind]
       let U_option [utility ethn-ind ses-ind thresh] of option
       ;let free ifelse-value (tie-houses-to-ses) [[(item ses-ind ses-maxpop) - (item ses-ind ses-counts)] of option] [[maxpop - totalpop] of option]
       if (U_option - U_home > 0) or (always-move) [
@@ -156,10 +164,25 @@ to alter-popdata [ethn-ind ses-ind change] ; change should be 1 or -1
 end
 
 ;; REPORTERS DECISIONS TO SEARCH / MOVE
+; For selection of "a random person"
+to-report random-option [ethn-ind ses-ind]
+  report rnd:weighted-one-of districts [max list 0 (maxpop - totalpop) * ifelse-value ethn-ses-recommendations [recommendation-probability ethn-ind ses-ind] [1]]
+end
+to-report random-ses-option [ethn-ind ses-ind]
+report rnd:weighted-one-of districts [max list 0 (item ses-ind ses-maxpop - item ses-ind ses-counts) *
+                                                 ifelse-value ethn-ses-recommendations [recommendation-probability ethn-ind ses-ind] [1]]
+end
+; For utility computation
 to-report utility [ethn-ind ses-ind thresh] report (observable-utility ethn-ind ses-ind thresh) + random-gumbel end
 to-report observable-utility [ethn-ind ses-ind thresh] ; the utility concept here is linear in similarity fractions, shifted such that 0 divides favorable and non-favorable
-  report (ifelse-value (others-ignore-ethn and ethn-ind = 3) [0] [beta-eth * (percent-similar-ethnicity-neighborhood ethn-ind - thresh)]) +
-         beta-ses * (percent-similar-ses-neighborhood ses-ind - thresh)
+  report (ifelse-value (others-ignore-ethn and ethn-ind = 3) [0] [beta-eth * (item ethn-ind perc-sim-eth - thresh)]) +
+         beta-ses * (item ses-ind perc-sim-ses - thresh)
+end
+to-report recommendation-probability [ethn-ind ses-ind]
+  ifelse (((ifelse-value (others-ignore-ethn and ethn-ind = 3) [0] [beta-eth]) + beta-ses) = 0)
+    [report 1]
+    [report ((ifelse-value (others-ignore-ethn and ethn-ind = 3) [0] [beta-eth * item ethn-ind perc-sim-eth]) +
+                      beta-ses * (item ses-ind perc-sim-ses)) / ((ifelse-value (others-ignore-ethn and ethn-ind = 3) [0] [beta-eth]) + beta-ses) / 2]
 end
 to-report percent-similar-ethnicity-neighborhood [ethn-ind]
   report (item ethn-ind ethnicity-counts + neighbor-weight * sum [item ethn-ind ethnicity-counts] of link-neighbors) /
@@ -173,6 +196,7 @@ end
 ;; VISUALIZATION AND PRINT OUTPUT
 
 to visualize
+  ask patches [set pcolor ifelse-value (data-source = "simulation (dynamic)") [68] [7]]
   ask turtles [set size 0 set label ""]
   foreach gis:feature-list-of townshp [ x ->
     let dist ifelse-value (data-source = "empirical (static)")
@@ -189,7 +213,8 @@ to visualize
 end
 
 to toggle-color-axis-max
-  set color-axis-max ifelse-value (color-axis-max = 1) [precision max [abs value-for-monitoring self] of ifelse-value (data-source = "empirical (static)") [staticempiricals] [districts] 1] [1]
+  set color-axis-max ifelse-value (color-axis-max = 1) [precision max fput 0.1 [abs value-for-monitoring self] of ifelse-value (data-source = "empirical (static)") [staticempiricals] [districts] 1] [1]
+;  set color-axis-max ifelse-value (color-axis-max = 1) [precision max (list 0.1 [abs value-for-monitoring self] of ifelse-value (data-source = "empirical (static)") [staticempiricals] [districts]) 1] [1]
 end
 
 to print-town-data
@@ -216,9 +241,9 @@ to print-town-data
      matrix:times-scalar (matrix:from-row-list town-popdata) (100 / town-totalpop)
   output-print ""
   output-print "Ethnic segregation measures"
-  output-print (word " Avg local Simpson-Index: " precision (sum [totalpop * ethnic-simpson] of districts / sum [totalpop] of districts) 3)
-  output-print (word " Town Simpson-Index: " precision town-ethnic-simpson 3)
-  output-print (word " Excess avg local Simpson-Index: " precision (sum [totalpop * (ethnic-simpson - town-ethnic-simpson)] of districts / sum [totalpop] of districts) 3)
+  output-print (word " Avg local Simpson index: " precision (sum [totalpop * ethnic-simpson] of districts / sum [totalpop] of districts) 3)
+  output-print (word " Town Simpson index: " precision town-ethnic-simpson 3)
+  output-print (word " Excess avg local Simpson index: " precision (sum [totalpop * (ethnic-simpson - town-ethnic-simpson)] of districts / sum [totalpop] of districts) 3)
   foreach range length ethnicities [x -> output-print (word " Dissimilarity " item x ethnicities ": " precision (sum [totalpop * dissimilarity x] of districts / sum [totalpop] of districts) 3)]
 end
 
@@ -232,9 +257,9 @@ to-report color-explain-string
 end
 to-report value-for-monitoring [dist]
   report (ifelse-value
-    (measure = "ethnic Simpson") [ [ethnic-simpson] of dist ]
-    (measure = "ethnic entropy") [ [ethnic-entropy] of dist]
-    (measure = "excess ethnic Simpson") [ [ethnic-simpson] of dist - town-ethnic-simpson]
+    (measure = "Simpson index") [ [ethnic-simpson] of dist ]
+    (measure = "entropy index") [ [ethnic-entropy] of dist]
+    (measure = "excess Simpson index") [ [ethnic-simpson] of dist - town-ethnic-simpson]
     (measure = "ethnic entropy") [ [ethnic-entropy] of dist]
     (measure = "loss ethnic entropy") [ town-ethnic-entropy - [ethnic-entropy] of dist]
     (measure = "pop / max pop") [ [totalpop / maxpop] of dist ]
@@ -248,7 +273,7 @@ to-report value-for-monitoring [dist]
     (measure = "avg threshold") [ mean-threshold [indivs] of dist ]
     (measure = "ethnicity avg threshold") [ mean-threshold [filter [y -> item 0 y = position (ethnicity) ethnicities] indivs] of dist ]
     (measure = "SES avg threshold") [ mean-threshold [filter [y -> item 1 y = position (ses) sess] indivs] of dist ]
-    (measure = "ethnicity-SES avg threshold") [ mean-threshold [filter [y -> (item 1 y = position (ses) sess) and (item 0 y = position (ethnicity) ethnicities)] indivs] of dist ]
+    (measure = "ethnicity-SES avg thres") [ mean-threshold [filter [y -> (item 1 y = position (ses) sess) and (item 0 y = position (ethnicity) ethnicities)] indivs] of dist ]
     (measure = "avg SES") [ [average-ses] of dist ]
     (measure = "ethnicity avg SES") [[ethnicity-average-ses position (ethnicity) ethnicities] of dist ]
     (measure = "SES fraction") [ [item (position (ses) sess) ses-counts] of dist / [totalpop] of dist ]
@@ -274,9 +299,16 @@ to-report dissimilarity-string [ethn-ind] report (word (precision (sum [totalpop
   " (emp " (precision (sum [totalpop * dissimilarity ethn-ind] of staticempiricals / sum [totalpop] of staticempiricals) 3) ")") end
 to-report location-quotient [ethn-ind] report (item ethn-ind ethnicity-counts / item ethn-ind town-ethnicity-counts) / (totalpop / town-totalpop) end
 to-report location-quotient-ses [ethn-ind ses-ind] report (item ses-ind item ethn-ind popdata / item ses-ind item ethn-ind town-popdata) / (totalpop / town-totalpop) end
-to-report interaction [dists ethn-ind1 ethn-ind2] report ifelse-value (interaction-within = "all") [interaction-all districts ethn-ind1 ethn-ind2] [interaction-ses districts (position interaction-within sess) ethn-ind1 ethn-ind2] end
-to-report interaction-all [dists ethn-ind1 ethn-ind2] report sum [ (item ethn-ind1 ethnicity-counts / item ethn-ind1 town-ethnicity-counts) * (item ethn-ind2 ethnicity-counts / totalpop) ] of dists end
-to-report interaction-ses [dists ses-ind ethn-ind1 ethn-ind2 ] report sum [ ((item ses-ind item ethn-ind1 popdata) / (item ses-ind item ethn-ind1 town-popdata)) * ((item ethn-ind2 ethnicity-counts) / totalpop) ] of dists end
+to-report interaction [ethn-ind1 ethn-ind2]
+  let dists ifelse-value data-source = "empirical (static)" [staticempiricals] [districts]
+  let ses-ind1 position interacter-ses sess
+  let ses-ind2 position interact-with-ses sess
+  report sum [ ((ifelse-value ses-ind1 = false [item ethn-ind1 ethnicity-counts] [item ses-ind1 item ethn-ind1 popdata]) /
+                (ifelse-value ses-ind1 = false [item ethn-ind1 town-ethnicity-counts] [item ses-ind1 item ethn-ind1 town-popdata])) *
+               ((ifelse-value ses-ind2 = false [item ethn-ind2 ethnicity-counts] [item ses-ind2 item ethn-ind2 popdata]) /
+                totalpop) ] of dists
+end
+
 to-report moran-I-backup [dists]
   let m mean [value-for-monitoring self] of dists
   report (count dists / (sum [count link-neighbors] of dists)) *
@@ -288,9 +320,6 @@ to-report moran-I [dists]
 end
 
 ;; GENERAL REPORTERS
-; For selection of "a random person"
-to-report random-option report rnd:weighted-one-of districts [max list 0 (maxpop - totalpop)] end
-to-report random-ses-option [ses-ind] report rnd:weighted-one-of districts [max list 0 (item ses-ind ses-maxpop - item ses-ind ses-counts)] end
 ; For computations on popdata-type lists of lists
 to-report count-sess [popd] report map [y -> sum map [x -> item y x] popd] range length sess end
 to-report count-ethnicities [popd] report map sum popd end
@@ -315,6 +344,7 @@ to baseline-further-parameters
   set free-space 0.05
   set turnover 0
   set always-search false
+  set always-move false
   set neighbor-weight 0.17
   set others-ignore-ethn true
 end
@@ -323,7 +353,7 @@ to baseline-core-parameters
   set threshold-mean 0.3
   set threshold-sd 0.1
   set tie-houses-to-ses true
-  set beta-eth 6
+  set beta-eth 8
   set beta-ses 12
 end
 
@@ -338,20 +368,125 @@ to export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks [TOW TH-M TH-SD TIEHOUSE B
   set tie-houses-to-ses TIEHOUSE
   set beta-eth B-ETH
   set beta-ses B-SES
+  set stop-tick TI
   setup
   shuffle-population
   repeat stop-tick [ go ]
-  export-world (word "SchellingGIS_World_Exports/" TOWN "_" TH-M "_" TH-SD "_" TIEHOUSE "_" B-ETH "_" B-SES "_t" TI ".csv")
+  export-world (word "worlds/" TOWN "_" TH-M "_" TH-SD "_" TIEHOUSE "_" B-ETH "_" B-SES "_t" TI ".csv")
 end
 
 to load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks [TOW TH-M TH-SD TIEHOUSE B-ETH B-SES TI]
-  import-world (word "SchellingGIS_World_Exports/" TOWN "_" TH-M "_" TH-SD "_" TIEHOUSE "_" B-ETH "_" B-SES "_t" TI ".csv")
+  import-world (word "worlds/" TOWN "_" TH-M "_" TH-SD "_" TIEHOUSE "_" B-ETH "_" B-SES "_t" TI ".csv")
   load-gisdataset
 end
 
-to load-gisdataset
-  set townshp gis:load-dataset (word "LAD_shp_NetLogo/" town "/" town ".shp")
-  gis:set-world-envelope (gis:envelope-union-of (gis:envelope-of townshp))
+to baseline-samples
+  set town "Bradford"
+  set scale-down-pop 10
+  baseline-further-parameters
+  baseline-core-parameters
+  setup
+  foreach range 20 [x ->
+    shuffle-population
+    repeat 20 [ go ]
+    export-world (word "worlds/Bradford_baseline_Test" x "_t" ticks ".csv")
+    repeat 40 [ go ]
+    export-world (word "worlds/Bradford_baseline_Test" x "_t" ticks ".csv")
+    ]
+end
+to baseline-samples-continued
+  foreach [1 3 4 5 6 9 11 12 14 16 17 18 19] [x ->
+    import-world (word "worlds/Bradford_baseline_Test" x "_t60.csv")
+    load-gisdataset
+    repeat 80 [ go ]
+    export-world (word "worlds/Bradford_baseline_Test" x "_t" ticks ".csv")
+    repeat 160 [ go ]
+    export-world (word "worlds/Bradford_baseline_Test" x "_t" ticks ".csv")
+    ]
+end
+to baseline-samples-continued2
+  foreach [5 6 9 11 12 17 18] [x ->
+    import-world (word "worlds/Bradford_baseline_Test" x "_t300.csv")
+    load-gisdataset
+    repeat 320 [ go ]
+    export-world (word "worlds/Bradford_baseline_Test" x "_t" ticks ".csv")
+    ]
+end
+to baseline-samples-continued3
+  foreach [6 11 17 18] [x ->
+    import-world (word "worlds/Bradford_baseline_Test" x "_t620.csv")
+    load-gisdataset
+    repeat 640 [ go ]
+    export-world (word "worlds/Bradford_baseline_Test" x "_t" ticks ".csv")
+    ]
+end
+to baseline-samples-continued4
+  foreach [6 11 17 18] [x ->
+    import-world (word "worlds/Bradford_baseline_Test" x "_t1260.csv")
+    load-gisdataset
+    repeat 1260 [ go ]
+    export-world (word "worlds/Bradford_baseline_Test" x "_t" ticks ".csv")
+    ]
+end
+to figure-simulations
+  ; export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks [TOW TH-M TH-SD TIEHOUSE B-ETH B-SES TI]
+  ;Fig 1
+  export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3   0 false  4  0 1000
+  export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3   0 false  8  0 1000
+  export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3   0 false 12  0 1000
+  export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1 false  4  0 1000
+  export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1 false  8  0 1000
+  export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1 false 12  0 1000
+  ; Fig 2
+  export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1 false  8  8 1000
+  export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1 false  8 12 1000
+  export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1  true  8  0 1000
+  export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1  true  8  8 1000
+  ; Further Figs.
+  export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.35   0 false  8  0 1000
+  export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.35   0 false 12  0 1000
+end
+
+to figure-simulations-cont
+;  load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3   0 false  4  0 1000
+;  repeat 260 [ go ]
+;  export-world (word "worlds/" town "_" threshold-mean "_" threshold-sd "_" tie-houses-to-ses "_" beta-eth "_" beta-ses "_t" ticks ".csv")
+;
+;  load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3   0 false  8  0 1000
+;  repeat 260 [ go ]
+;  export-world (word "worlds/" town "_" threshold-mean "_" threshold-sd "_" tie-houses-to-ses "_" beta-eth "_" beta-ses "_t" ticks ".csv")
+;
+;  load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3   0 false 12  0 1000
+;  repeat 260 [ go ]
+;  export-world (word "worlds/" town "_" threshold-mean "_" threshold-sd "_" tie-houses-to-ses "_" beta-eth "_" beta-ses "_t" ticks ".csv")
+;
+;  load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1 false  4  0 1000
+;  repeat 260 [ go ]
+;  export-world (word "worlds/" town "_" threshold-mean "_" threshold-sd "_" tie-houses-to-ses "_" beta-eth "_" beta-ses "_t" ticks ".csv")
+;
+;  load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1 false  8  0 1000
+;  repeat 260 [ go ]
+;  export-world (word "worlds/" town "_" threshold-mean "_" threshold-sd "_" tie-houses-to-ses "_" beta-eth "_" beta-ses "_t" ticks ".csv")
+;
+;  load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1 false 12  0 1000
+;  repeat 260 [ go ]
+;  export-world (word "worlds/" town "_" threshold-mean "_" threshold-sd "_" tie-houses-to-ses "_" beta-eth "_" beta-ses "_t" ticks ".csv")
+;
+  load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1 false  8  8 300
+  repeat 960 [ go ]
+  export-world (word "worlds/" town "_" threshold-mean "_" threshold-sd "_" tie-houses-to-ses "_" beta-eth "_" beta-ses "_t" ticks ".csv")
+
+  load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1 false  8 12 300
+  repeat 960 [ go ]
+  export-world (word "worlds/" town "_" threshold-mean "_" threshold-sd "_" tie-houses-to-ses "_" beta-eth "_" beta-ses "_t" ticks ".csv")
+
+  load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1  true  8  0 300
+  repeat 960 [ go ]
+  export-world (word "worlds/" town "_" threshold-mean "_" threshold-sd "_" tie-houses-to-ses "_" beta-eth "_" beta-ses "_t" ticks ".csv")
+
+  load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks "Bradford" 0.3 0.1  true  8  8 300
+  repeat 960 [ go ]
+  export-world (word "worlds/" town "_" threshold-mean "_" threshold-sd "_" tie-houses-to-ses "_" beta-eth "_" beta-ses "_t" ticks ".csv")
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -403,7 +538,7 @@ BUTTON
 36
 650
 79
-Update Visualization
+Update Map and Plots
 visualize\nupdate-plots
 NIL
 1
@@ -533,9 +668,9 @@ OUTPUT
 
 SLIDER
 1514
-118
+57
 1662
-151
+90
 free-space
 free-space
 0
@@ -548,9 +683,9 @@ HORIZONTAL
 
 SWITCH
 1589
-207
-1734
-240
+146
+1739
+179
 always-search
 always-search
 1
@@ -580,12 +715,12 @@ data-source
 
 PLOT
 1092
-227
-1424
+226
+1495
 371
 segregation index
 time
-Simpson-I
+Simpson
 0.0
 10.0
 0.0
@@ -594,8 +729,9 @@ true
 true
 "" ""
 PENS
-"avg local Simpson-I" 1.0 0 -13345367 true "" "plot sum [totalpop * ethnic-simpson] of districts / sum [totalpop] of districts"
-"town Simpson-I" 1.0 0 -7500403 true "" "plot town-ethnic-simpson"
+"avg local Simpson index (sim)" 1.0 0 -13345367 true "" "plot sum [totalpop * ethnic-simpson] of districts / sum [totalpop] of districts"
+"town Simpson index" 1.0 0 -16777216 true "" "plot town-ethnic-simpson"
+"avg local Simpson index (emp)" 1.0 0 -7500403 true "" "plot sum [totalpop * ethnic-simpson] of staticempiricals / sum [totalpop] of districts"
 
 SWITCH
 905
@@ -642,10 +778,10 @@ PENS
 "default" 0.025 1 -16777216 true "" "histogram all-thresholds"
 
 MONITOR
-1285
-291
-1454
-336
+1326
+320
+1495
+365
 excess avg Simpson index
 (word (precision (sum [(ethnic-simpson - town-ethnic-simpson) * totalpop] of districts / sum [totalpop] of districts) 3)\n   \" (emp. \" (precision (sum [(ethnic-simpson - town-ethnic-simpson) * totalpop] of staticempiricals / sum [totalpop] of staticempiricals) 3) \")\")
 3
@@ -670,7 +806,7 @@ CHOOSER
 ses
 ses
 "LOW" "MID" "HIGH"
-2
+0
 
 CHOOSER
 318
@@ -679,7 +815,7 @@ CHOOSER
 124
 measure
 measure
-"--- for specific ethnicty ---" "ethnicity fraction" "ethnicity dissimilarity" "ethnicity location quotient" "ethnicity avg threshold" "ethnicity avg SES" "--- for specific SES ---" "SES fraction" "SES avg threshold" "--- for specific ethnicity and SES ---" "ethnicity-SES fraction" "ethnicity-SES loc. quo." "ethnicity-SES avg thres" "ethnicity-SES obs utility" "--- local segregation indices ---" "ethnic Simpson" "ethnic entropy" "excess ethnic Simpson" "loss ethnic entropy" "--- other measures ---" "pop / mean pop" "pop / max pop" "avg threshold" "avg SES"
+"--- for specific ethnicty ---" "ethnicity fraction" "ethnicity dissimilarity" "ethnicity location quotient" "ethnicity avg threshold" "ethnicity avg SES" "--- for specific SES ---" "SES fraction" "SES avg threshold" "--- for specific ethnicity and SES ---" "ethnicity-SES fraction" "ethnicity-SES loc. quo." "ethnicity-SES avg thres" "ethnicity-SES obs utility" "--- local indices ---" "Simpson index" "entropy index" "excess Simpson index" "loss ethnic entropy" "--- other measures ---" "pop / mean pop" "pop / max pop" "avg threshold" "avg SES"
 1
 
 SLIDER
@@ -819,8 +955,8 @@ SLIDER
 79
 color-axis-max
 color-axis-max
-0.3
-8
+0.1
+5
 1.0
 0.1
 1
@@ -829,9 +965,9 @@ HORIZONTAL
 
 SLIDER
 1514
-174
+113
 1684
-207
+146
 turnover
 turnover
 0
@@ -850,8 +986,8 @@ SLIDER
 beta-eth
 beta-eth
 0
-100
-6.0
+30
+0.0
 0.1
 1
 NIL
@@ -865,8 +1001,8 @@ SLIDER
 beta-ses
 beta-ses
 0
-60
-12.0
+30
+4.0
 0.1
 1
 NIL
@@ -874,9 +1010,9 @@ HORIZONTAL
 
 SLIDER
 1514
-271
+243
 1684
-304
+276
 neighbor-weight
 neighbor-weight
 0
@@ -889,9 +1025,9 @@ HORIZONTAL
 
 SWITCH
 1514
-303
+275
 1684
-336
+308
 others-ignore-ethn
 others-ignore-ethn
 0
@@ -899,12 +1035,12 @@ others-ignore-ethn
 -1000
 
 INPUTBOX
-1514
-36
-1575
-96
+1697
+10
+1749
+70
 stop-tick
-500.0
+1260.0
 1
 0
 Number
@@ -954,9 +1090,9 @@ Further Parameters
 
 TEXTBOX
 1515
-100
+39
 1673
-118
+57
 Used while loading town
 12
 0.0
@@ -964,9 +1100,9 @@ Used while loading town
 
 TEXTBOX
 1515
-158
+97
 1685
-176
+115
 Used at simulation runtime
 12
 0.0
@@ -1011,9 +1147,9 @@ weights for the fraction of similars in the function of observable utility
 
 BUTTON
 1514
-339
+311
 1712
-372
+344
 Set baseline further params
 baseline-further-parameters\n
 NIL
@@ -1028,45 +1164,11 @@ NIL
 
 BUTTON
 1514
-371
+343
 1712
-404
+376
 Set baseline core params
 baseline-core-parameters
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-8
-707
-259
-740
-Run and export world current setting
-export-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks town threshold-mean threshold-sd tie-houses-to-ses beta-eth beta-ses stop-tick
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-408
-706
-659
-739
-Load world current setting
-load-town_th-m_th-sd_tiehouses_b-eth_b-ses_ticks town threshold-mean threshold-sd tie-houses-to-ses beta-eth beta-ses stop-tick
 NIL
 1
 T
@@ -1103,7 +1205,7 @@ true
 true
 "" ""
 PENS
-"searching" 1.0 0 -14835848 true "" "if ticks > 0 [plot searches-count / decisions-count]"
+"searching" 1.0 0 -13791810 true "" "if ticks > 0 [plot searches-count / decisions-count]"
 "moving" 1.0 0 -955883 true "" "if ticks > 0 [plot moves-count / decisions-count]"
 
 MONITOR
@@ -1128,241 +1230,197 @@ moves-count / decisions-count
 1
 11
 
-BUTTON
-658
-706
-802
-739
-NIL
-load-gisdataset
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-263
-707
-403
-740
-Export timeline
-setup\nshuffle-population\nexport-world (word \"SchellingGIS_World_Exports/\" town \"_\" threshold-mean \"_\" threshold-sd \"_\" tie-houses-to-ses \"_\" beta-eth \"_\" beta-ses \"_t\" ticks \".csv\")\nrepeat 10 [ \n  repeat 20 [ go ]\n  export-world (word \"SchellingGIS_World_Exports/\" town \"_\" threshold-mean \"_\" threshold-sd \"_\" tie-houses-to-ses \"_\" beta-eth \"_\" beta-ses \"_t\" ticks \".csv\")\n]\nrepeat 500 [ go ]\nexport-world (word \"SchellingGIS_World_Exports/\" town \"_\" threshold-mean \"_\" threshold-sd \"_\" tie-houses-to-ses \"_\" beta-eth \"_\" beta-ses \"_t\" ticks \".csv\")\nexport-interface (word \"SchellingGIS_World_Exports/Interface_\" town \"_\" threshold-mean \"_\" threshold-sd \"_\" tie-houses-to-ses \"_\" beta-eth \"_\" beta-ses \"_t\" ticks \".png\")
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
 MONITOR
-1570
-488
-1627
-533
+1568
+517
+1625
+562
 wPa
-interaction districts 0 1
+interaction 0 1
 3
 1
 11
 
 MONITOR
-1514
-488
-1571
-533
+1512
+517
+1569
+562
 wPw
-interaction districts 0 0
+interaction 0 0
 3
 1
 11
 
 MONITOR
-1514
-532
-1571
-577
+1512
+561
+1569
+606
 aPw
-interaction districts 1 0
+interaction 1 0
 3
 1
 11
 
 MONITOR
-1570
-532
-1627
-577
+1568
+561
+1625
+606
 aPa
-interaction districts 1 1
+interaction 1 1
 3
 1
 11
 
 MONITOR
-1626
-488
-1683
-533
+1624
+517
+1681
+562
 wPb
-interaction districts 0 2
+interaction 0 2
 3
 1
 11
 
 MONITOR
-1626
-532
-1683
-577
+1624
+561
+1681
+606
 aPb
-interaction districts 1 2
+interaction 1 2
 3
 1
 11
 
 MONITOR
-1514
-576
-1571
-621
+1512
+605
+1569
+650
 bPw
-interaction districts 2 0
+interaction 2 0
 3
 1
 11
 
 MONITOR
-1570
-576
-1627
-621
+1568
+605
+1625
+650
 bPa
-interaction districts 2 1
+interaction 2 1
 3
 1
 11
 
 MONITOR
-1626
-576
-1683
-621
+1624
+605
+1681
+650
 bPb
-interaction districts 2 2
+interaction 2 2
 3
 1
 11
 
 MONITOR
-1682
-488
-1739
-533
+1680
+517
+1737
+562
 wPo
-interaction districts 0 3
+interaction 0 3
 3
 1
 11
 
 MONITOR
-1682
-532
-1739
-577
+1680
+561
+1737
+606
 aPo
-interaction districts 1 3
+interaction 1 3
 3
 1
 11
 
 MONITOR
-1682
-576
-1739
-621
+1680
+605
+1737
+650
 bPo
-interaction districts 2 3
+interaction 2 3
 3
 1
 11
 
 MONITOR
-1514
-620
-1571
-665
+1512
+649
+1569
+694
 oPw
-interaction districts 3 0
+interaction 3 0
 3
 1
 11
 
 MONITOR
-1570
-620
-1627
-665
+1568
+649
+1625
+694
 oPa
-interaction districts 3 1
+interaction 3 1
 3
 1
 11
 
 MONITOR
-1626
-620
-1683
-665
+1624
+649
+1681
+694
 oPb
-interaction districts 3 2
+interaction 3 2
 3
 1
 11
 
 MONITOR
-1682
-620
-1739
-665
+1680
+649
+1737
+694
 oPo
-interaction districts 3 3
+interaction 3 3
 3
 1
 11
 
 TEXTBOX
-1514
-466
-1748
-484
-Interaction/Isolation Index (xPx/xPy)
+1513
+423
+1747
+441
+Interaction/Isolation Index (xPy/xPx):
 12
 0.0
 1
 
-CHOOSER
-1590
-665
-1739
-710
-interaction-within
-interaction-within
-"all" "LOW" "MID" "HIGH"
-0
-
 SWITCH
 1589
-239
-1734
-272
+178
+1739
+211
 always-move
 always-move
 1
@@ -1371,9 +1429,9 @@ always-move
 
 TEXTBOX
 1519
-213
+152
 1587
-239
+178
 skip decision step 1
 9
 0.0
@@ -1381,21 +1439,89 @@ skip decision step 1
 
 TEXTBOX
 1519
-243
+182
 1587
-266
+205
 skip decision step 2
 9
 0.0
 1
 
+CHOOSER
+1512
+470
+1620
+515
+interacter-ses
+interacter-ses
+"all" "LOW" "MID" "HIGH"
+0
+
+CHOOSER
+1619
+470
+1737
+515
+interact-with-ses
+interact-with-ses
+"all" "LOW" "MID" "HIGH"
+0
+
+TEXTBOX
+1512
+442
+1740
+470
+Probabilty a random person with ethnicity x interacts in district with person of ethnicity y.
+9
+0.0
+1
+
+SWITCH
+1514
+210
+1739
+243
+ethn-ses-recommendations
+ethn-ses-recommendations
+0
+1
+-1000
+
+TEXTBOX
+1511
+396
+1690
+424
+Further Outcomes
+18
+115.0
+1
+
 BUTTON
-855
-728
-1122
-761
-Shuffle Population / Equalize SES
-equalize-ses
+6
+658
+129
+691
+Import World
+import-world user-file\nload-gisdataset
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+132
+658
+255
+691
+Export World
+let default (word \"worlds/\" town \"_\" threshold-mean \"_\" threshold-sd \"_\" tie-houses-to-ses \"_\" beta-eth \"_\" beta-ses \"_t\" ticks \".csv\")\nifelse (user-one-of \"Save world-file to:\" (list default \"Select own file\" ) = \"Select own file\") \n  [export-world user-new-file] \n  [export-world default]
 NIL
 1
 T

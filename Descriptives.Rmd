@@ -1,0 +1,181 @@
+---
+title: "Descriptives"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+### DESCRIPTIVES TO SHOW
+
+```{r Load Data}
+library(tidyverse)
+library(sf)
+load("R/LAD_lsoa_2001_lsoa_2011")
+load("R/LAD_towns01_towns11")
+load("R/LAD_bradford_2001_2011")
+
+towns <- bind_rows(
+  towns01 %>% dplyr::select(LAD11NM, contains("segrtown_"), all=all_01) %>% mutate(year = 2001),
+  towns11 %>% dplyr::select(LAD11NM, contains("segrtown_"), all=all_11) %>% mutate(year = 2011)
+) %>% #select(-segrtown_avgsimpson2_ethgroupedses, -segrtown_simpson2_ethgroupedses) %>% 
+  mutate(excess_avgsimpson2_ethgrouped = segrtown_avgsimpson2_ethgrouped - segrtown_simpson2_ethgrouped,
+         excess_avgsimpson2_ethgroupedses = segrtown_avgsimpson2_ethgroupedses - segrtown_simpson2_ethgroupedses,
+         excess_avgsimpson2_eth = segrtown_avgsimpson2_eth - segrtown_simpson2_eth) %>% 
+  dplyr::select(LAD11NM, year, everything())
+```
+
+
+## Population in LSOA all England 2011
+
+England has `r lsoa_2011 %>% filter(LAD11NM=="Bradford") %>% nrow()` LSOA (after merging the ones in 2011 which where split from 2001 to 2011 and dropping the few ones with complicated changes from 2001 and 2011).
+
+```{r LSOA_England}
+lsoa_2011 %>% st_set_geometry(NULL) %>% select(all_11, allvalidses_11) %>% 
+  pivot_longer(cols = c(all_11, allvalidses_11)) %>% 
+  group_by(name) %>% summarize(across(everything(),list(min=min,q05=function(x) quantile(x,0.05),
+                                                        median=median,mean=mean,q95=function(x) quantile(x,0.95),
+                                                        max=max), .names="{fn}"), .groups="drop") %>% 
+  knitr::kable()
+```
+
+## Population in LSOA Bradford 2011
+
+Bradford has `r lsoa_2011 %>% filter(LAD11NM=="Bradford") %>% nrow()` LSOA (after merging the ones in 2011 which where split from 2001 to 2011, no LSOA had to be dropped because of complicated changes from 2001 and 2011).
+
+```{r LSOA_Bradford}
+lsoa_2011 %>% st_set_geometry(NULL) %>% filter(LAD11NM=="Bradford") %>% 
+  select(all_11, allvalidses_11) %>% pivot_longer(cols = c(all_11, allvalidses_11)) %>% 
+  group_by(name) %>% summarize(across(everything(),list(min=min,q05=function(x) quantile(x,0.05),
+                                                        median=median,mean=mean,q95=function(x) quantile(x,0.95),
+                                                        max=max), .names="{fn}"), .groups="drop") %>% 
+  knitr::kable()
+```
+
+
+
+## Segregation statistics for Bradford
+
+```{r}
+br <- towns %>% filter(LAD11NM=="Bradford")
+br %>% dplyr::select(year,  
+                     segrtown_simpson2_ethgrouped, 
+                     segrtown_avgsimpson2_ethgrouped,
+                     excess_avgsimpson2_ethgrouped,
+                     segrtown_simpson2_ethgroupedses, 
+                     segrtown_avgsimpson2_ethgroupedses,
+                     excess_avgsimpson2_ethgroupedses,
+                     segrtown_fraction_ethgrouped_whiteb,
+                     segrtown_fraction_ethgrouped_asian,  
+                     segrtown_fraction_ethgrouped_black, 
+                     segrtown_fraction_ethgrouped_other,
+                     segrtown_fraction_ethgroupedses_whiteb,
+                     segrtown_fraction_ethgroupedses_asian,  
+                     segrtown_fraction_ethgroupedses_black, 
+                     segrtown_fraction_ethgroupedses_other,
+                     segrtown_dissim_ethgrouped_whiteb,
+                     segrtown_dissim_ethgrouped_asian,  
+                     segrtown_dissim_ethgrouped_black, 
+                     segrtown_dissim_ethgrouped_other,
+                     segrtown_dissim_ethgroupedses_whiteb,
+                     segrtown_dissim_ethgroupedses_asian,  
+                     segrtown_dissim_ethgroupedses_black, 
+                     segrtown_dissim_ethgroupedses_other) %>% 
+  pivot_longer(-year) %>% filter(!is.na(value)) %>% 
+  mutate(base=word(name,3,3,sep="_"), 
+         name = str_remove(name,"segrtown_") %>% str_remove("_ethgrouped") %>% str_remove("ses")) %>% 
+  pivot_wider(names_from = c(base,year), values_from=value) %>% knitr::kable(digits=3)
+```
+
+### Local Simpson indices 2011
+```{r}
+lsoa_2011 %>% st_set_geometry(NULL) %>% 
+  filter(LAD11NM=="Bradford") %>% select(segrlsoa_simpson2_ethgrouped, segrlsoa_simpson2_ethgroupedses) %>% 
+  pivot_longer(cols = c(segrlsoa_simpson2_ethgrouped, segrlsoa_simpson2_ethgroupedses)) %>% 
+  group_by(name) %>% summarize(across(everything(),list(min=min,q05=function(x) quantile(x,0.05),
+                                                        median=median,mean=mean,q95=function(x) quantile(x,0.95),
+                                                        max=max), .names="{fn}"), .groups="drop") %>% 
+  knitr::kable()
+```
+
+### Local Simpson indices 2001
+```{r}
+lsoa_2001 %>% st_set_geometry(NULL) %>% 
+  filter(LAD11NM=="Bradford") %>% select(segrlsoa_simpson2_ethgrouped) %>% 
+  pivot_longer(cols = c(segrlsoa_simpson2_ethgrouped)) %>% 
+  group_by(name) %>% summarize(across(everything(),list(min=min,q05=function(x) quantile(x,0.05),
+                                                        median=median,mean=mean,q95=function(x) quantile(x,0.95),
+                                                        max=max), .names="{fn}"), .groups="drop") %>% 
+  knitr::kable()
+```
+
+
+
+
+For comparison: 
+
+```{r}
+br <- towns %>% filter(LAD11NM=="Bradford")
+br %>%   mutate(segrtown_fraction_eth_pakistani = 
+                  if_else(is.na(segrtown_fraction_eth_asia_pakistani_01),0,segrtown_fraction_eth_asia_pakistani_01) +
+                  if_else(is.na(segrtown_fraction_eth_asia_pakistani_11),0,segrtown_fraction_eth_asia_pakistani_11),
+                segrtown_fraction_eth_bangla = 
+                  if_else(is.na(segrtown_fraction_eth_asia_bangla_01),0,segrtown_fraction_eth_asia_bangla_01) +
+                  if_else(is.na(segrtown_fraction_eth_asia_bangla_11),0,segrtown_fraction_eth_asia_bangla_11),
+                segrtown_fraction_eth_indian = 
+                  if_else(is.na(segrtown_fraction_eth_asia_indian_01),0,segrtown_fraction_eth_asia_indian_01) +
+                  if_else(is.na(segrtown_fraction_eth_asia_indian_11),0,segrtown_fraction_eth_asia_indian_11),
+                segrtown_fraction_eth_chi = 
+                  if_else(is.na(segrtown_fraction_eth_asia_chi_01),0,segrtown_fraction_eth_asia_chi_01) +
+                  if_else(is.na(segrtown_fraction_eth_asia_chi_11),0,segrtown_fraction_eth_asia_chi_11)) %>%
+  dplyr::select(year,  
+                segrtown_simpson2_eth, 
+                segrtown_avgsimpson2_eth,
+                excess_avgsimpson2_eth,
+                segrtown_fraction_eth_pakistani,
+                segrtown_fraction_eth_indian,
+                segrtown_fraction_eth_bangla,
+                segrtown_fraction_eth_chi,
+                ) %>%
+  pivot_longer(-year) %>% filter(!is.na(value)) %>% 
+  mutate(base=word(name,3,3,sep="_"), 
+         name = str_remove(name,"segrtown_") %>% str_remove("_ethgrouped") %>% str_remove("ses")) %>% 
+  pivot_wider(names_from = c(base,year), values_from=value) %>% knitr::kable(digits=3)
+```
+
+## Bradford in comparison to others
+
+The difference between the town-wide Simpson index and the average local Simpson index is a good measure to assess how much a town is locally segregated compared to what would be expected if every district had an ethnic composition as the town as a whole. 
+
+Bradford is high in the ranking. In particular, it is high although it has a comparably low fraction of Asians. 
+Bradford increased a lot from 2001 to 2011. 
+
+```{r}
+towns %>% select(LAD11NM, year, excess_avgsimpson2_ethgrouped, segrtown_fraction_ethgrouped_asian) %>% 
+  arrange(desc(excess_avgsimpson2_ethgrouped)) %>% head(20) %>% 
+  knitr::kable()
+```
+
+
+For comparison with ethgroupedses
+
+```{r}
+towns %>% select(LAD11NM, year,
+                 excess_avgsimpson2_ethgroupedses, segrtown_fraction_ethgroupedses_asian) %>% 
+  arrange(desc(excess_avgsimpson2_ethgroupedses)) %>% head(10) %>% 
+  knitr::kable()
+```
+
+
+
+
+
+
+

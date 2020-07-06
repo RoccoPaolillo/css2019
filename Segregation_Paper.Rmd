@@ -264,6 +264,10 @@ The interface section "5. Outcomes Simulation vs. Empricial" shows the current d
 
 ## ABM Analysis
 
+We performed a parameter exploration to find parameters which would make the segregation patterns of Bradford emerge from a counter-factual non-segregated situation. That means, for every simulation we load the population of Bradford^[S] in which every district has a composition of shuffled for are reasonable and  
+
+
+
 
 Figure \@ref(fig:Empirical). 
 
