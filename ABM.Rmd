@@ -35,7 +35,7 @@ In the model, each *agent* is demographically specified by *ethnicity* ("WHITEB"
 The *neighborhood* of the agent is the district of residence and to a lesser degree the neighboring districts.
 The *districts* in the model are the LSOA's of the town in their geographic location and districts are neighboring when they share a border.
 
-An agent's *decision to relocate* is modeled as a two-step process. 
+An agent's *decision to relocate* is modeled as a two-step process then. 
 First, the agent assesses the utility of their current residence. 
 When utility is positive the agent stays at the current residence and the second step is skipped. When utility is negative the agent selects a potential new residence in the town randomly from all available places. 
 Second, the agent assesses the utility of this option. 
