@@ -220,16 +220,23 @@ All simulations ran for 1,000 time steps.
 The results show two qualitatively different outcomes: For high weights on ethnic similarity Asians gather and satisfice in several districts with 20% to 30% Asians. 
 For low weights and thus higher importance of the random component of unobservable utility, almost all Asians finally end up in 100% Asian districts. 
 This result may appear counter-intuitive because intuitively one may think that a higher weight for ethnic similarity would trigger more ethnic segregation. 
-The opposite is the case, because the random fluctuations help that mechanism (4) kicks in and some districts reach the threshold that white British massively move out. 
-This creates a seed of all-Asian districts which makes neighboring districts attractive for Asians. 
-With higher $\beta_\text{Eth}$ the simulation does not produce conditions that mechanism (4) can kick in. 
+The opposite is the case, because the random fluctuations help that mechanism (4) kicks in and some districts reach the threshold of Asians so that white British massively move out. 
+Here our results align with @van2009neighborhood[p.1174] comparing linear and threshold utility functions in Schelling's model where agents reiterate their decisions: for low levels of $\beta$, i.e. for higher randomness "first mistaken move leaves the target neighborhood equally undesirable to co-ethnics and equally desirable to out-group members currently there".
+In our simulation this creates a seed of all-Asian districts which makes neighboring districts attractive for Asians. 
+With higher $\beta_\text{Eth}$ the simulation does not produce those conditions that let mechanism (4) kick in. 
 Also the heterogeneity of thresholds seem to help in this regard. 
+A possible explanation is that compared to models like @van2009neighborhood, we include a two-step process. 
+As $\mu_\theta=0.3$ is relatively low, with some agents having even lower thresholds, Asians are more likely to satisfy their ethnic preferences.
+Thus, most of them would not look for other options. 
+Those who would relocate would be the small minority of Asians which holds higher thresholds, whose relocation to other districts whould not be so high to cause out-groups to leave. 
+Here, we find a similar result as in @xie2012modeling: given different thresholds within the same ethnic group, a proportion of agents with lower thresholds can decrease ethnic segregation, while increasing the attractiveness of neighborhood to those with slightly higher preferences.
 
 For the intermediate weight of $\beta_{Eth}=8$ the evolution of all-Asian districts only happens under heterogeneous thresholds. 
 This case is also interesting as shown in an extra box in the Figure: After 300 time steps the situation looks as for homogeneous thresholds. 
-Only after at about 800 time steps the dissimilarity of Asians starts to quickly increase and the whole town shifts to the fully segregated situation. 
+Only after about 800 time steps the dissimilarity of Asians starts to quickly increase and the whole town shifts to the fully segregated situation. 
 Moreover, also the tiny Black population could form a cluster with one all-Black district in this simulation. 
 The parameters of this simulation, $\beta_{Eth}=8, \sigma_\theta=0.1$, are also those of the baseline constellation. 
+
 In Figure ABM3 we show the influence of the weights for similar socio-economic status in the neighborhood. 
 
 
@@ -248,6 +255,13 @@ However, in this outcome segregation with respect to socio-economic status is mu
 Tying houses to SES naturally restricts this deviation from real data because much more of Bradford's sociodemographic structure is forced to be preserved. 
 For equal weights for ethnic and socio-economic similarity, tying houses to SES, however, leads to over-segregation with respect to ethnicity. 
 Only when the weight for socio-economic similarity is above the weight for ethnic similarity, as in the baseline configuration, the simulation stabilizes with a spatial segregation structure similar to Bradford 2011. 
+Most likely, this happens because the majority of Asians is in LOW SES class (45.8%) and MID SES class (31.8%).
+When socio-economic utility outweights ethnic utility with $\beta_\text{Eth}=8, \beta_\text{SES}=12$, Asians care more about socio-economic similarity than ethnic similarity. In Bradford, they have more chance to find an agent of similar socio-economic status in the White ethnic group than in the own one (White represent the 72.4% of LOW SES and the 74.6% of MID SES).
+In short, to satisfy socio-economic similarity, they would accept to relocate to a less ethnically homogeneous neighborhood (with more White).
+This result can be an alternative to models like  @fossett2006ethnic or @chen2005emergence, who consider other factors of utility as neighborhood quality and relocation costs.
+The result is that ethnic minorities with lower economic power cannot afford the price of high-quality neighborhoods, so to remain in ethnically mixed lower socio-economic neighborhoods.
+Our results show how similar scenarios might occur not as by-product of relocation costs, but due to the by-product of one similarity preference over another together with the distribution of such category in different ethnnic groups.
+
 
 ```{r ABM3, fig.cap="Exploration of the preferences for socio-economic similarity and tying houses to socio-economic status focussing on the fraction of Asians including the baseline parameter constellation and further details about SES segregation for another simulation at the bottom."}
 "figs/figABM3.png" %>% 
@@ -255,7 +269,7 @@ Only when the weight for socio-economic similarity is above the weight for ethni
   crop(right = 190, left = 0, bottom = 240, top = 0)
 ```
 
-The basic conclusions of this agent-based model is that mild preferences for ethnic similarity can trigger strong ethnic segregation in Bradfords population through the mechanisms (1)--(4). 
+The basic conclusions of this agent-based model is that mild preferences for ethnic similarity can trigger strong ethnic segregation in Bradford's population through the mechanisms (1)--(4). 
 Even after an artificially forced de-segregation, strong segregation would slowly re-emerge under these behavioral assumptions through the natural movements of individuals. 
 As in Schelling's original model this phenomenon is a systemic effect. 
 Although almost all agents in the simulation would be satisfied with much less than 50% similars in their neighborhood, the emerging outcome makes Asians and white British live mostly in ethnically homogeneous neighborhoods. 
