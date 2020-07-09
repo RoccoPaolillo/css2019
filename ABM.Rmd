@@ -32,6 +32,7 @@ crop <- function(im, left = 0, top = 0, right = 0, bottom = 0) {
 
 We built an agent-based model of residential relocation within a town where we specify agents and space based on its geography and demographic data. 
 In our model, each *agent* is demographically specified by *ethnicity* ("WHITEB", "ASIAN", "BLACK", or "OTHER"), *socio-economic status* ("LOW", "MID", or "HIGH"), and an individual *threshold* value which quantifies the minimal fractions of similar neighbors the agents needs to perceive positive utility from their residence.
+
 The *neighborhood* of the agent is the district of residence and to a lesser degree the neighboring districts.
 The *districts* in the model are the LSOA's of the town in their geographic location and districts are neighboring when they share a border.
 
