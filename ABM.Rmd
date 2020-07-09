@@ -35,7 +35,7 @@ In the model, each *agent* is demographically specified by *ethnicity* ("WHITEB"
 The *neighborhood* of the agent is the district of residence and to a lesser degree the neighboring districts.
 The *districts* in the model are the LSOA's of the town in their geographic location and districts are neighboring when they share a border.
 
-An agent's *decision to relocate* is modeled as a two-step process then. 
+An agent's *decision to relocate* is modeled as a two-step process. 
 First, the agent assesses the utility of their current residence. 
 When utility is positive the agent stays at the current residence and the second step is skipped. When utility is negative the agent selects a potential new residence in the town randomly from all available places. 
 Second, the agent assesses the utility of this option. 
@@ -46,9 +46,19 @@ In most models implementing discrete choice within Schelling's framework [@bruch
 
 Formally, an agent with ethnicity $X$, socio-economic status $Y$, and threshold $\theta$ computes *utility* for a residence in district $i$ as 
 $$ U_{X,Y,\theta}(i) = \underbrace{\beta_\text{Eth} (P_i^X - \theta) + \beta_\text{SES} (P_i^Y - \theta)}_{\text{observable utility}} + \varepsilon$$
-where $P_i^X$ is the *fraction of the population with the same ethnicity*, $P_i^Y$ the *fraction of the population with the same socio-economic status*, and $\varepsilon$ is *unobservable utility* of the agent. The population the agent takes into account is the population in district $i$ and the population in neighboring districts to a lesser degree, weighted by the parameter *neighbor-weight*. In step one of the relocation decision, the agent decides to search when $U_{X,Y,\theta}(i) < 0$. In step two, the agent selects a districts $j$ to potentially move to. The selection is random with probabilities proportional to the number of the free residences over all districts. The agent relocates to district $j$ when $U_{X,Y,\theta}(j) > U_{X,Y,\theta}(i)$.
+where $P_i^X$ is the *fraction of the population with the same ethnicity*, $P_i^Y$ the *fraction of the population with the same socio-economic status*, and $\varepsilon$ is *unobservable utility* of the agent. 
+The population the agent takes into account is the population in district $i$ and the population in neighboring districts to a lesser degree, weighted by the parameter *neighbor-weight*. 
+In step one of the relocation decision, the agent decides to search when $U_{X,Y,\theta}(i) < 0$. 
+In step two, the agent selects a districts $j$ to potentially move to. 
+The selection is random with probabilities proportional to the number of the free residences over all districts. 
+The agent relocates to district $j$ when $U_{X,Y,\theta}(j) > U_{X,Y,\theta}(i)$.
 
-Utility increases linearly with $P_i^X$ as well as with $P_i^Y$. Thus, both similarities can compensate each other. Low similarity in ethnicity can be compensated by high socio-economic similarity. The parameters $\beta_\text{Eth}$ and $\beta_\text{SES}$ specifiy the importance of ethnic and respectively socio-economic similarity. The higher the threshold $\theta$ the larger is the tendency that utility becomes negative. agents with a high threshold thus have a higher tendency to search an alternative residence in step one of the decision to relocate. In step two of the relocation decision, agents prefer alternatives with either more ethnic similarity or more socio-economic similarity or both. When, e.g., $\beta_\text{SES} > \beta_\text{Eth}$ a small increase in socio-economic similarity can outweigh even a slightly larger decrease in ethnic similarity. 
+Utility increases linearly with $P_i^X$ as well as with $P_i^Y$. 
+Thus, both similarities can compensate each other. 
+Low similarity in ethnicity can be compensated by high socio-economic similarity. 
+The parameters $\beta_\text{Eth}$ and $\beta_\text{SES}$ specifiy the importance of ethnic and respectively socio-economic similarity. 
+The higher the threshold $\theta$ the larger is the tendency that utility becomes negative. 
+Agents with a high threshold thus have a higher tendency to search an alternative residence in step one of the decision to relocate. In step two of the relocation decision, agents prefer alternatives with either more ethnic similarity or more socio-economic similarity or both. When, e.g., $\beta_\text{SES} > \beta_\text{Eth}$ a small increase in socio-economic similarity can outweigh even a slightly larger decrease in ethnic similarity. 
 
 In our particular case, it is reasonable to treat the ethnic group OTHER differently because they represent much more diverse groups of the population than WHITEB, ASIAN, or BLACK. They will perceive themselves as similars to a much lower degree. Therefore, we set $\beta_\text{Eth} = 0$ when  $X=$ OTHER.^[The model includes an additional parameter to switch the different behavior of OTHERs on and off. When off, OTHERs are treated as a normal ethnic group.] 
 
