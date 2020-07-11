@@ -9,9 +9,10 @@ author:
 - Selamawit SERKA
 bibliography: references.bib
 output:
+  pdf_document: 
+    keep_tex: true
   html_document:
     df_print: paged
-  pdf_document: default
   word_document: default
 abstract: ''
 editor_options:
