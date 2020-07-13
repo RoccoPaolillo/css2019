@@ -386,30 +386,36 @@ br %>% dplyr::select(year,
          name = str_remove(name,"segrtown_") %>% str_remove("_ethgrouped") %>% str_remove("ses")) %>% 
   pivot_wider(names_from = c(base,year), values_from=value) %>% knitr::kable(digits=3)
 
-towns %>% select(LAD11NM, year, segrtown_avgsimpson2_ethgrouped, segrtown_simpson2_ethgrouped,segrtown_fraction_ethgrouped_asian,all) %>% 
-  arrange(desc(segrtown_fraction_ethgrouped_asian)) %>% filter(year == 2001) %>% head(20)
-towns %>% select(LAD11NM, year, segrtown_avgsimpson2_ethgrouped, segrtown_simpson2_ethgrouped,segrtown_fraction_eth_asia_pakistani_11,all) %>% 
-  arrange(desc(segrtown_fraction_eth_asia_pakistani_11)) %>% filter(year == 2001) %>% head(20)
+towns %>% dplyr::select(LAD11NM, year, segrtown_avgsimpson2_ethgrouped, segrtown_simpson2_ethgrouped,segrtown_fraction_ethgrouped_asian,all) %>% 
+  arrange(desc(segrtown_fraction_ethgrouped_asian)) %>% filter() %>% head(20)
+towns %>% dplyr::select(LAD11NM, year, segrtown_avgsimpson2_ethgrouped, segrtown_simpson2_ethgrouped,segrtown_fraction_eth_asia_pakistani_11,all) %>% 
+  arrange(desc(segrtown_fraction_eth_asia_pakistani_11)) %>% filter(year == 2011) %>% head(20)
 
 
-towns %>% select(LAD11NM, year, segrtown_avgsimpson_ethgrouped, segrtown_avgsimpson_eth) %>% 
-  arrange(segrtown_avgsimpson_eth) %>% head(20)
-towns %>% select(LAD11NM, year, segrtown_simpson2_ethgrouped, segrtown_simpson2_eth) %>% 
-  arrange(segrtown_simpson2_eth) %>% head(20)
-towns %>% select(LAD11NM, year, segrtown_fraction_ethgrouped_asian) %>% 
+towns %>% dplyr::select(LAD11NM, year, segrtown_avgsimpson_ethgrouped, segrtown_avgsimpson_eth) %>% 
+  arrange(segrtown_avgsimpson_ethgrouped) %>% head(20)
+towns %>% dplyr::select(LAD11NM, year, segrtown_simpson2_ethgrouped, segrtown_simpson2_eth) %>% 
+  arrange(segrtown_simpson2_ethgrouped) %>% head(20)
+towns %>% dplyr::select(LAD11NM, year, segrtown_fraction_ethgrouped_asian) %>% 
   arrange(desc(segrtown_fraction_ethgrouped_asian)) %>% head(20)
+
+
+towns %>% dplyr::select(LAD11NM, year, segrtown_avgsimpson2_ethgrouped, segrtown_simpson2_ethgrouped) %>% 
+  mutate(diff = segrtown_avgsimpson2_ethgrouped - segrtown_simpson2_ethgrouped) %>% 
+  arrange(desc(diff)) %>% head(20)
 
 
 
 
 ## export LSOA of some towns including raw data to ESRI shapefile readable with NetLogo GIS extension
-for (TOWN in c("Southampton","Leeds", "Bradford", "Leicester", "Manchester", "Birmingham", "Brighton and Hove",
-               "Stoke-on-Trent", "Plymouth", "Derby", "Nottingham", "Newcastle upon Tyne","Leeds", "Sheffield",
-               "Coventry", "St Albans" , "Guildford", "Cambridge", "Middlesbrough", "Sunderland", "Oxford","Luton",
-               "Blackburn with Darwen", "Oldham","Wolverhampton","Slough","Walsall","Bristol, City of", "Liverpool", "Leeds", "Reading")) {
-  if (!dir.exists(paste0("LAD_shp_NetLogo/",TOWN))) {
+# for (TOWN in c("Southampton","Leeds", "Bradford", "Leicester", "Manchester", "Birmingham", "Brighton and Hove",
+#                "Stoke-on-Trent", "Plymouth", "Derby", "Nottingham", "Newcastle upon Tyne","Leeds", "Sheffield",
+#                "Coventry", "St Albans" , "Guildford", "Cambridge", "Middlesbrough", "Sunderland", "Oxford","Luton",
+#                "Blackburn with Darwen", "Oldham","Wolverhampton","Slough","Walsall","Bristol, City of", "Liverpool", "Leeds", "Reading")) {
+for (TOWN in towns11$LAD11NM) {
+    if (!dir.exists(paste0("LAD_shp_NetLogo/",TOWN))) {
     town <- lsoa_2011 %>% filter(LAD11NM == TOWN) %>%
-      select(LSOA11CD, allvalidses_11, starts_with("ethgroupedses_"), 
+      dplyr::select(LSOA11CD, allvalidses_11, starts_with("ethgroupedses_"), 
              -ethgroupedses_whiteb, -ethgroupedses_asian, -ethgroupedses_black, -ethgroupedses_other)
     names(town) <- sub("ethgroupedses_","",names(town))
     town %>% st_write(dsn = paste0("LAD_shp_NetLogo/",TOWN), layer = TOWN, driver = "ESRI Shapefile", delete_dsn = TRUE)

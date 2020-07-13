@@ -9,11 +9,11 @@ author:
 - Selamawit SERKA
 bibliography: references.bib
 output:
-  pdf_document: 
-    keep_tex: true
+  word_document: default
   html_document:
     df_print: paged
-  word_document: default
+  pdf_document: 
+    keep_tex: true
 abstract: ''
 editor_options:
   chunk_output_type: console
@@ -29,96 +29,100 @@ crop <- function(im, left = 0, top = 0, right = 0, bottom = 0) {
   image_crop(im, glue::glue("{w-left-right}x{h-top-bottom}+{left}+{top}"))
 }
 ```
+
+
+AT SOME POINT WE HAVE TO INTRODUCE THE DIFFERENCES OF THE POPULATIONS IN DESCRIPTIVES AND ABM.
+NOT SURE YET WHERE.
+ANYWAY WE CAN REFER TO APPENDIX WITH DETAILED TABLES. 
+
 ## Agent-based model description
 
 We built an agent-based model of residential relocation within Bradford where we specify agents and space based on its geography and demographic data. 
-In the model, each *agent* is demographically specified by *ethnicity* ("WHITEB", "ASIAN", "BLACK", or "OTHER"), *socio-economic status* ("LOW", "MID", or "HIGH"), and an individual *threshold* value which quantifies the minimal fraction of similar neighbors for ethnicity and socio-economic status the agents needs to perceive positive utility from their residence.
-The *neighborhood* of the agent is the district of residence and to a lesser degree the neighboring districts.
-The *districts* in the model are the LSOA's of the town in their geographic location and districts are neighboring when they share a border.
+In the model, each *agent* is demographically specified by *ethnicity* ("WHITEB", "ASIAN", "BLACK", or "OTHER"), *socioeconomic status* ("LOW", "MID", or "HIGH"), and an individual *threshold* value which quantifies the minimal fraction of similar neighbors  the agent needs to be satisfied.
+The *neighborhood* of the agent is the LSOA of residence and with a lower weight the LSOA directly adjacent LSOAs.
 
-An agent's *decision to relocate* is modeled as a two-step process. 
+An agent's *decision to relocate* is modeled as a two-step process: the decisions to search and the decision to move. 
 First, the agent assesses the utility of their current residence. 
-When utility is positive the agent stays at the current residence and the second step is skipped. When utility is negative the agent selects a potential new residence in the town randomly from all available places. 
-Second, the agent assesses the utility of this option. 
-The agent moves to the district of the new residence if the utility in this district is larger than the utility at the current residence. 
-That way a free residence is created in the district the  agent is leaving. With the two-step process we unite two traditions of relocation models. 
-In Schelling's original model [-@schelling1969models;-@schelling1971dynamic] agents only make a decision to leave and move to a random new place without checking if this improves their utility. 
-In most models implementing discrete choice within Schelling's framework [@bruch2006neighborhood;@bruch2009preferences;@xie2012modeling], agents always compare their current residence with other options even if their current utility is very high.^[In the model, we provide further parameters to switch the two steps of the relocation decision on and off. When the first step is off, agents always search for an alternative location. When the second step is off agents always move to the selected alternative without checking if it has higher utility. These can be used for robustness tests.]
+When utility is positive the agent stays at the current residence and the second step is skipped. When utility is negative the agent selects a potential new residence in the town randomly from all available places.
+Second, the agent assesses the utility of this option for comparison. 
+The agent moves to the LSOA of the new residence if the utility in this LSOA is larger than the utility at the current residence. 
+That way a free residence is created in the district the agent is leaving. With the two-step process we unite two traditions of relocation models. 
+In Schelling's original model [-@schelling1969models;-@schelling1971dynamic] agents only make a utility-based  decision to leave and move to a new place without checking if this improves their utility. 
+Later adaptations introduced utility-based comparison in the framework of economic discrete choice models [@bruch2006neighborhood;@bruch2009preferences;@xie2012modeling] where agents always compare their current residence with other options. 
+These models do not consider that agents might be satisfied and skip the search.^[In the model, we provide a switch to make agents always move and a switch to make them always search. 
+That way, the relocation decision can be made as in the related models.]
 
-Formally, an agent with ethnicity $X$, socio-economic status $Y$, and threshold $\theta$ computes *utility* for a residence in district $i$ as 
-$$ U_{X,Y,\theta}(i) = \underbrace{\beta_\text{Eth} (P_i^X - \theta) + \beta_\text{SES} (P_i^Y - \theta)}_{\text{observable utility}} + \varepsilon$$
-where $P_i^X$ is the *fraction of the population with the same ethnicity*, $P_i^Y$ the *fraction of the population with the same socio-economic status*, and $\varepsilon$ is the *unobservable utility* of the agent. 
-The population the agent takes into account is the population in district $i$ and the population in neighboring districts to a lesser degree, weighted by the parameter *neighbor-weight*. 
+Formally, an agent with ethnicity $X$, socioeconomic status $Y$, and threshold $\theta$ computes *utility* for a residence in LSOA $i$ as 
+$$ U_{X,Y,\theta}(i) = \beta_\text{Eth} (P_i^X - \theta) + \beta_\text{SES} (P_i^Y - \theta) + \varepsilon$$
+where $P_i^X$ is the *fraction of the population with the same ethnicity*, $P_i^Y$ the *fraction of the population with the same socioeconomic status*, and $\varepsilon$ is the *unobservable utility* of the agent. 
+The first two terms on the right-hand side are the *observable utility*. 
+
+The population the agent takes into account is the population in LSOA $i$ and the population in neighboring LSOAs weighted down by the parameter *neighbor-weight*. 
 In step one of the relocation decision, the agent decides to search when $U_{X,Y,\theta}(i) < 0$. 
-In step two, the agent selects a districts $j$ to potentially move to. 
-The selection is random with probabilities proportional to the number of the free residences over all districts. 
+In step two, the agent selects an LSOA $j$ to potentially move to. 
+The selection is random with probabilities proportional to the number of the free residences over all districts.^[The probability is additionally weighted by the fractions of those with the same ethnicity and those with the same socioeconomic status analog to the computation of utility.
+This models that an agent might receive recommendations which come from ethnic of socioeconomic peers. 
+The feature can be switched off with the parameter *ethn-ses-recommendations*]
 The agent relocates to district $j$ when $U_{X,Y,\theta}(j) > U_{X,Y,\theta}(i)$.
 
 Utility increases linearly with $P_i^X$ as well as with $P_i^Y$. 
 Thus, both similarities can compensate each other. 
-Low similarity in ethnicity can be compensated by high socio-economic similarity. 
+Low similarity in ethnicity can be compensated by high socioeconomic similarity. 
 
-*Unobservable utility* $\varepsilon$ is the equivalent to error term in regression models and represents all unknown factors (e.g. other neighborhood or chooser's  characteristics) which can influence the relocation choice of an agent, in addition to observable utility.
-This is a standard in discrete choices that subscribe to random utility, assuming that people might not always select the best option based on observable utility, for whatever reason, still assuming a preference for utility maximization [@hess2018revisiting;@train2009discrete]. 
-This is a well-established approach in empirical studies of residential mobility [@frankhauser2016deciding;@boschman2015neighbourhood], and in recent years used in Schelling-type simulations for sake of realistic decisions and assumptions on people's preferences [@bruch2012methodological;@bruch2009preferences]. 
-Whenever utility is assessed, a random number for $\varepsilon$ is drawn from a standard Gumbel distribution.^[The standard Gumbel distribution is also known as generalized extreme value distribution type-I and has a mean of 0.577 (Euler-Masceroni constant) and a standard deviation of 1.283 ($\pi/\sqrt 6$)). Thus, when observed utility is zero in step one of the relocation decision, the probability to search is only 0.368. The probability to search is 0.5 for an observed utility of 0.367. In step two of the relocation decision, two random numbers are drawn, one for each alternative. The difference of two random variables with standard Gumbel distribution has a logistic distribution with mean zero and standard deviation 3.29 ($\pi^2/3$).] 
-Parameters $\beta_\text{Eth}$ and $\beta_\text{SES}$ represent the weight of observable utility over random term [@manski1977structure], respectively for the component of same ethnicity $P_i^X$ and same socio-economic status $P_i^Y$.
-The lower $\beta_\text{Eth}$ and $\beta_\text{SES}$ are, the stronger is the impact of random term $\varepsilon$ over that component of observable utility. With  $\beta_\text{Eth} = 0$, the relocation decision is totally random for ethnic composition of districts, for $\beta_\text{SES} = 0$ it is totally random for the socio-economic composition.
+Unobservable utility $\varepsilon$ is the equivalent of an error term in regression models and represents all unknown factors, e.g., other characteristics of the neighborhood relevant for the agent.
+This is a standard assumption in discrete choice models to model that people might not always select the best option based on observable utility [@hess2018revisiting;@train2009discrete]. 
+It is also well-established in empirical studies of residential mobility [@frankhauser2016deciding;@boschman2015neighbourhood]. 
+Whenever utility is assessed, a random number for $\varepsilon$ is drawn from a standard Gumbel distribution.^[The standard Gumbel distribution is also known as generalized extreme value distribution type-I and has a mean of 0.577 (Euler-Masceroni constant) and a standard deviation of 1.283 ($\pi/\sqrt 6$)). 
+When observable utility is zero in decision step one, the probability to search is 0.368. 
+In decision step, two random numbers are compared, one for each alternative. 
+The difference of two random variables with standard Gumbel distribution has a logistic distribution with mean zero and standard deviation 3.29 ($\pi^2/3$).] 
+The parameters $\beta_\text{Eth}$ and $\beta_\text{SES}$ represent the weights for similarity in ethnicity and similarity in socioeconomic status. 
+Together they also modify the impact of the random term $\varepsilon$ [@manski1977structure]:
+The lower $\beta_\text{Eth}$ and $\beta_\text{SES}$ are, the stronger is the impact of random term. With  $\beta_\text{Eth} = 0$, the relocation decision is not affected by ethnic composition, for $\beta_\text{SES} = 0$ socioeconomic composition does not play a role. When both are zero every relocation is only driven by the random term. 
 
+Agents with a high threshold $\theta$ have a higher tendency to search an alternative residence in step one of the decision to relocate. In step two of the relocation decision, agents prefer alternatives with either more ethnic similarity or more socioeconomic similarity or both, depending on degree of $\beta_\text{SES} and \beta_\text{Eth}$. 
 
-The higher the threshold $\theta$, the larger is the tendency that utility becomes negative. 
-Agents with a high threshold have a higher tendency to search an alternative residence in step one of the decision to relocate. In step two of the relocation decision, agents prefer alternatives with either more ethnic similarity or more socio-economic similarity or both, depending on degree of $\beta_\text{SES} and \beta_\text{Eth}$. 
+In our particular case, it is reasonable to treat the ethnicity OTHER differently for the same reason they are ignored in the comparison of the Simpson index.  
+People of other ethnic groups will perceive themselves much less as similars. Therefore, we set $\beta_\text{Eth} = 0$ when  $X=$ OTHER.^[The model includes a switch to treat OTHERs like a normal ethnic group.] 
 
-In our particular case, it is reasonable to treat the ethnicity OTHER differently because they represent much more diverse groups of the population than WHITEB, ASIAN, or BLACK, and each group with a minimal percentage. 
-They will perceive themselves as similars to a much lower degree. Therefore, we set $\beta_\text{Eth} = 0$ when  $X=$ OTHER.^[The model includes an additional parameter to switch the different behavior of OTHERs on and off. When off, OTHERs are treated as a normal ethnic group.] 
-
-
-We implemented the model in NetLogo [@wilenskynl] and made it freely available UPDATE LINK END.^[The model is available at https://github.com/RoccoPaolillo/css2019.git] 
+We implemented the model in NetLogo [@wilenskynl] and made it freely available.^[The model is available at https://github.com/RoccoPaolillo/css2019.git] 
 The interface is shown in Figure ABM1. 
-Clicking "Load town" in the interface section "1. 
-Load Town from GIS Data" initializes a simulation by loading the LSOA shapes of a town using NetLogo's GIS extension. 
-The GIS data includes population data for each district. REFER TO DESCRIPTIVES SECTION ON POPULATION DATA. 
+Clicking "Load town" in the interface section "1. Load Town from GIS Data" initializes a simulation by loading the LSOA shapes of a town using NetLogo's GIS extension. 
+The GIS data includes population count data for each LSOA as the 4-by-3 matrix for the four ethnic and three socioeconomic groups. 
 Summary statistics of the whole town are shown in the output window. 
 From the population data a set of agents is created in each district. 
-Agents are initialized with ethnicity and socio-economic status according to population data. 
-Further on, each agent draws the threshold $\theta$ from a Beta distribution with mean $\mu_\theta$ and standard $\sigma_\theta$. 
-These are two global parameters of the model quantifying level and dispersion of individual thresholds. 
-Finally, the maximal population is set for each district upon initialization.^[The maximal population is set based on the *free-space* parameter which quantifies the fraction of free places compared to the initial population. The maximal population is set once for the whole population for each district and once for each socio-economic status group. The latter allows to tie houses to agents with a specific socio-economic status which is an option that can be switched on and off at runtime.]  
-The population data can be visually explored on the central map using the switches, choosers and sliders in the section "2. 
-Explore Local Data". 
-Several basic, segregation specific and other measures are available. 
-Many are for speciific ethnic or socio-economic groups or both. 
+Agents are initialized with ethnicity and socioeconomic status according to population data. 
+Further on, each agent draws the threshold $\theta$ from a Beta distribution with mean $\mu_\theta$ and standard $\sigma_\theta$ which introduces two global parameters of the model quantifying level and dispersion of individual thresholds. 
+Finally, the maximal population is set for each district upon initialization.^[The maximal population is set based on the *free-space* parameter which quantifies the fraction of free places compared to the initial population. The maximal population is set once for the whole population for each district and once for each socioeconomic status group. The latter allows to tie houses to agents with a specific socioeconomic status which is an option that can be switched on and off at runtime.]  
+The population data can be visually explored on the central map using the switches, choosers and sliders in the section "2. Explore Local Data". 
+Several basic, segregation specific, and other measures are available. 
+Many are for specific ethnic or socioeconomic groups or both. 
 
-The main purpose of the agent-based model is to study the emergence of segregation patterns in towns which are not segregated. 
+The main purpose of our model is to find conditions for the emergence of segregation patterns in towns which are initially not segregated. 
 To that end, the population can be *shuffled* (using the button in section "3. Setup Simulation") to create a counter-factual situation in which each district shows the same composition of ethnicities as the whole town. 
 All our simulation experiments shuffle the population as part of the initialization procedure. 
-Shuffling keeps the geography of districts, the total decomposition of the population into ethnicity and socio-economic groups, and the  The shuffling procedure takes the parameter *tie-houses-to-SES* into account.^[When tie-houses-to-SES is switched on, the districts of the shuffled town keep the distribution of socio-economic groups. When switched off, also socio-economic groups are locally distributed as in the whole town after shuffling.] 
-As a consequence, the dissimilarity for all ethnicities and the average local Simpson Index are maximally low.
+Shuffling keeps the geography of LSOAs, the total decomposition of the population into ethnicity and socioeconomic groups. The shuffling procedure takes the parameter *tie-houses-to-SES* into account.^[When tie-houses-to-SES is switched on, the LSOAs of the shuffled town keep the distribution of socioeconomic groups. When switched off, also socioeconomic groups are locally distributed as in the whole town after shuffling.] 
+As a consequence, the dissimilarity for all ethnic groups and the average local Simpson Index are maximally low.
 
-Clicking "Go" in the interface section "4. 
-Run Simulation" starts a *simulation run*. 
+Clicking "Go" in the interface section "4. Run Simulation" starts a *simulation run*. 
 Further on, the section provides the global parameters from the utility functions $\beta_\text{Eth}$ and $\beta_\text{SES}$ which can be changed at runtime. 
 Once "Go" is clicked, the simulation runs one tick after the other. 
 In each tick, agents are picked at random and perform the two step decision to relocate as described above. 
-The total number of agents' decisions per ticks matches the total number of agents. 
-Thus, a tick represents a unit time step. 
+The total number of agent decisions per tick matches the total number of agents. 
+Thus, a tick represents a unit time step in which on average every agent thinks about relocation once.  
 
-The interface section "5. Outcomes Simulation vs. Empirical" shows the current distribution of the measure as selected in section 2 in comparison with the emprical distribution. Further on, time trends are shown for the Simpson Index and the Dissimilarity Index for all ethnicities as well as the fraction of agents who searched for an alternative and those who actually moved. 
-The interface also provides further parameters for robustness tests. 
 
 ## Agent-based model analysis
 
-We performed a parameter exploration with the goal to find the combination of parameters in the model we built which make the segregation patterns of Bradford emerge from a counter-factual maximally non-segregated situation. 
-We therefore agent-based modeling to the purpose of *explanation* [@edmonds22squazzoni] of residential segregation observed in Bradford.
-For every simulation we loaded the population of Bradford^[We scaled down the population of Bradford by a factor of ten. So, every simulation ran with about 32,180 agents, i.e. on average 105 per LSOA. We tested extensively that simulation runs are similar to simulations with the full population.] and shuffled agents such that their ethnicity and socio-economic status in every district had a composition as the whole town (see the model description for details). 
-This procedure constituted the initial condition for all the simulations reported in the following. 
-The shuffling of population washes away spatial structure of the ethnic and socio-economic demography of Bradford. 
-The only things remaining are the town-wide distribution of ethnicity and socio-economic status and the geographical neighborhood structure of Bradford's LSOAs. 
+We performed a parameter exploration with the goal to find a possible *explanation* [@edmonds22squazzoni] how the residential segregation observed in Bradford could emerge even from a counter-factual maximally non-segregated town. 
+We searched for a combination of the parameters $\mu_\theta$ (average threshold), $\sigma_\theta$ (heterogeneity of thresholds), $\beta_\text{Eth}$ (weight for ethnic similarity), $\beta_\text{SES}$ (weight for socioeconomic similarity), and *tie-houses-to-SES*. 
+For every simulation, we scaled down the Bradford's population by a factor of ten and shuffled the population. So, every simulation ran with about 32,180 agents, on average 105 per LSOA.^[We tested extensively that simulation runs are similar to simulations with the full population.]
 
-The scope of the parameter exploration was on the four continuous parameters: the level ($\mu_\theta$) and diversity ($\sigma_\theta$) of individual similarity thresholds, together with how the similarity of ethnicity ($\beta_\text{Eth}$) and similarity in socio-economic status ($\beta_\text{SES}$) in the neighborhood are weighted against the random unobservable utility in the utility function of agents. 
-We found that the following parameters bring about several characteristics of Bradford's real situation of ethnic segregation in 2011 : $\mu_\theta = 0.3, \mu_\sigma = 0.1, \beta_\text{Eth}=8, \beta_\text{SES}=12$, \emph{tie-houses-to-SES} switched on, \emph{free-space}=0.05, \emph{neighbor-weight}=0.17. 
-We refer to this constellation as the *baseline* in the following. 
-Figure ABM1 shows the outcome of a simulation run in the original interface of the NetLogo model after 2,540 time steps of simulation. 
+In the following, we first present the finally found parameter constellation and explain how it matches the real segregation pattern in Bradford. Afterwards, we decompose this parameter constellation First, we focus on ethnic preferences and threshold heterogeneity; second we analyse how this interplays with socioeconomic preferences and socioeconomic housing structure. 
+
+The following parameters bring about several characteristics of Bradford's real situation of ethnic segregation in 2011 : $\mu_\theta = 0.3, \mu_\sigma = 0.1, \beta_\text{Eth}=8, \beta_\text{SES}=12$, \emph{tie-houses-to-SES} switched on.^[We set \emph{free-space}=0.05 and \emph{neighbor-weight}=0.17 after some exploration. A further analysis of these parameters' impact is beyond the scope of this study.]
+<!-- We refer to this constellation as the *final constellation* in the following.  -->
+Figure ABM1 shows the outcome of a simulation run after 2,540 time steps of simulation. 
 
 ```{r ABM1, fig.cap="Netlogo Interface, and simulation outcome at time step 2,540 with the baseline parameter constellation. ($\\mu_\\theta = 0.3, \\mu_\\sigma = 0.1, \\beta_\\text{Eth}=8, \\beta_\\text{SES}=12$, \\emph{tie-houses-to-SES}, \\emph{free-space}=0.05, \\emph{neighbor-weight}=0.17) The map shows the fraction Asians. "}
 "figs/figABM1.png" %>%
@@ -126,78 +130,70 @@ Figure ABM1 shows the outcome of a simulation run in the original interface of t
  crop(right = 80, left = 0, bottom = 110, top = 0)
 ```
 
-The Figure's central map shows the fractions of Asians. 
-The color axis goes from 0 to 100% from white over red to black. 
-Two smaller clusters of districts in the north and two bigger clusters in the south-east are visible with more than 60% Asians.  
-These Asian-dominated districts are surrounded by districts with around 30-50% of Asians. 
+The Figure shows the original interface of the NetLogo model. The central map displays the fractions of Asians. 
+Two smaller clusters of LSOAs in the north and two bigger clusters in the south-east are visible with more than 60% Asians.  
+These Asian-dominated LSOAs are surrounded by LSOAs with around 30-50% of Asians. 
 Most other districts have close to zero Asians. 
-Some slightly clustered regions exist with 4-8% of Asians. 
-Thus, the strong spatial segregation of the 16.6% Asians in Bradford 2011 emerged from a spatially equalized population through relocation based on some preferences for ethnic similarity ($\beta_\text{Eth}=8$) although these are outweighed by preferences for similarity in socio-economic status ($\beta_\text{SES}=12$). 
-This happens despite the fact that agents are on average already happy when 30% of their neighbors are similar ($\mu_\theta=0.3$) and tend not to search for other options. So, almost all agents in this artificial population would be fine with living in a district as a minority with respect to ethnicity and socio-economic status -- Asian's and white British alike. 
-To provide more detail, Figure ABM_Appendix1 shows the time evolution of the fraction of Asians in a sequence of maps. 
+This is similar to Bradfords reality 2011, cf. Figure REFFIGUREDESC.
+Some regions exist with 4-8% of Asians. 
+This strong spatial segregation of the only 16.6% Asians emerged from a spatially equalized population through the relocation based on preferences for ethnic similarity ($\beta_\text{Eth}=8$) but even stronger preferences for similarity in socioeconomic status ($\beta_\text{SES}=12$). 
+Figure ABM_Appendix1 shows the time evolution of the fraction of Asians in a sequence of maps to provide more detail. It also shows the outcomes of three other simulation runs with the same parameters. 
+Segregation happens despite the fact that agents are on average already satisfied with 30% similar neighbors ($\mu_\theta=0.3$). So, almost all agents in this artificial population would be fine with living in an LSOA as a minority with respect to ethnicity and socioeconomic status -- Asian's and white British alike. 
 
-We briefly outline the other panels in the simulation interface shown in Figure ABM1. 
-The threshold histogram to the left of the map shows the distribution of the initially created thresholds of agents centered around $\mu_\theta=0.3$. 
-The standard deviation of $\sigma_\theta=0.1$ implied that less than 2% if all agents are already satisfied with less than 10% similars, while also less than 2% would demand more than 50% to stop searching for other options. 
-We select  $\mu_\theta=0.3$ because theoretically assuming that people might generally prefer to not live in a neighborhood where the own group represents the minority, often used as baseline condition in experiments on Schelling's model [@bruch2006neighborhood;bruch2009preferences].
-Considering we have 3 ethnic groups (“WHITEB”, “ASIAN”, “BLACK”, with very low percentage of "OTHER"), we justify  $\mu_\theta=0.3$.
-Heterogeneity of residential preferences is a realistic assumption used in agent-based models of urban dynamics [@brown2006effects;@xie2012modeling]. $\sigma_\theta=0.1$ best matches observed segregation in Bradford in addition to other parameters, and allows for agents to not hold extremely high or extremely low thresholds which would not support they studying of its emergence.
-
-Above the map it is indicated that the Moran index of spatial autocorrelation of the fraction of Asians is 0.82 in the simulation (while it is 0.799 in reality in Bradford 2011). 
-To the right of the maps the Section 5. 
-shows other outcome measures. 
-The first panel shows the distribution of the districts' fraction of Asians where the x-axis are all districts sorted by size. 
+We briefly outline the other panels in the simulation interface of Figure ABM1. 
+The threshold histogram to the left of the map shows the distribution of the initially created thresholds of agents. The standard deviation of $\sigma_\theta=0.1$ implied that less than 2% if all agents are already satisfied with less than 10% similars, while also less than 2% would demand more than 50% to stop searching for other options. 
+ <!-- #### Sorry, Rocco, I commented this out because I find the majority = 1/3 argument not convincing. We may discuss the reasonability later but should only argue with real emprical data, if there is some, and not with what other modelers did. -->
+<!-- We select $\mu_\theta=0.3$ because theoretically assuming that people might generally prefer to not live in a neighborhood where the own group represents the minority, often used as baseline condition in experiments on Schelling's model [@bruch2006neighborhood;@bruch2009preferences]. -->
+<!-- Considering we have 3 ethnic groups (“WHITEB”, “ASIAN”, “BLACK”, with very low percentage of "OTHER"), we justify  $\mu_\theta=0.3$. -->
+<!-- Heterogeneity of residential preferences is a realistic assumption used in agent-based models of urban dynamics [@brown2006effects;@xie2012modeling]. $\sigma_\theta=0.1$ best matches observed segregation in Bradford in addition to other parameters, and allows for agents to not hold extremely high or extremely low thresholds which would not support they studying of its emergence. -->
+The Moran index of spatial autocorrelation for the fraction of Asians is 0.82 in the simulation, shown above the map. It is 0.799 in reality in Bradford 2011. 
+To the right of the maps the Section "5. Outcomes Simulation vs. Emipirical" shows in the first panel the distribution of the LSOAs' fraction of Asians where the x-axis are all districts sorted by size. 
 Besides to the right is the same information as a histogram. 
 The simulated distribution is quite similar to the empirical distribution with the deviation that the simulation shows slightly more districts with less than 10% but slightly less with 10-60%. 
-Time trends are shown for the average local Simpson index. 
-Because of spatial equalization it starts naturally at the Simpson index of the whole town of 0.599. 
+Below, time trends are shown for the average local Simpson index. 
+Naturally, it starts at the Simpson index of the whole town of 0.599. 
 It then increases over time up to the level 0.711 which is close to Bradford 2011. 
-Below, the dissimilarity indices for all four ethnic groups are shown. 
-As in Bradford's empirical data, the dissimilarity of Asians grows highest while white British are second in dissimilarity. 
+The panel below shows the dissimilarity indices for all four ethnic groups. 
+As in Bradford's empirical data, the dissimilarity of Asians grows highest while white British are second. 
 Both indices take a relatively long time to grow. 
 The small fraction of Blacks has the third largest dissimilarity which also coincides with real data. 
-A deviation to real data is that the dissimilarity of Blacks is substantially lower. 
-Also as in real data, the ethnicity OTHER has the lowest dissimilarity.
-Interestingly, also their dissimilarity increases over time in the simulation despite all these agents do not take ethnic similarity into account in their relocation decision, differently from the other three groups. 
+Also as in real data, the other ethnic groups have the lowest dissimilarity.
+Interestingly, also their dissimilarity increases over time although all these agents do not take ethnic similarity into account in their relocation decision, differently from the other three groups. 
 Finally, the bottom panel shows the fraction of agents who search and who finally move in one time step. 
 Naturally, these fractions decline over time because people tend to find places where they are satisfied. 
 After the 2,540 time steps still 4.5% of agents decide to search an alternative in every time step and 1.5% of the people move. 
-A comparison with yearly moves of people in reality allows a rough calibration what one step in simulation time would represent in real time. 
-TODO: Compare this with real moves. 
 
 The interface also allows to view maps and distributions for the fractions of other ethnic groups and several other indicators. 
-The particular simulation outcome of Figure ABM1 can be inspected in more detail by loading the saved simulation in NetLogo by clicking "Import World", selecting the relevant measures and "Update Maps and Plots". 
-The supplemental material provides the NetLogo model file, geographic and demographic data for all local authorities in England to be loaded in NetLogo, and all simulations presented here.
-Maps for other segregation indicators are not shown here because the fraction of Asians already provides the essence. 
-Due to the small fraction of Blacks and other ethnicities (7.8% together) the fraction white British is close to the inverse of the fraction of Asians. 
-Also because of this, the local Simpson index is high wherever the fraction of Asians is either close to 100% or close to 0% (and therefore the fraction of white British is close to 100%). 
+The particular simulation outcome of Figure ABM1 can be inspected in more detail by loading the saved simulation in NetLogo via "Import World", selecting the relevant measures, and "Update Maps and Plots". 
+The supplemental material provides the NetLogo model file, geographic and demographic data for Bradford to be loaded in NetLogo, and all simulations presented here.
 
 There are four basic mechanism which make it possible that the fairly high segregation between Asians and white British can emerge from a spatially equalized situation. 
 
-  (1) Random fluctuations happen through random draws of unobservable utility. This will disturb the perfect equality of districts and is a constant source of some noise in the simulation. 
-  (2) Once an agent decided to search for a new location it is more likely to move to a district with more of its kind (in ethnicity or socio-economic status). Such a move would happen even if the agent would remain unsatisfied afterwards because of still low observed utility. 
-  Agents which have positive observed utility tend to stay and not even search. This is very likely for white British but unlikely for Asians (and Blacks) in the initial condition. 
+  (1) Random fluctuations happen through random draws of unobservable utility. This will disturb the perfect equality of LSOAs and is a constant source of "noisy" movements in the simulation. 
+  (2) Once an agent decided to search for a new location it is more likely to move to a LSOA with more of its kind (in ethnicity or socioeconomic status). Such a move would happen even if the agent would remain unsatisfied afterwards.
+  Agents which have positive observable utility tend to stay. This is very likely for white British but unlikely for Asians (and Blacks) in the initial condition. 
   Thus, in the beginning Asians will move more than whites and they will move more likely to those districts which have slightly more Asians because of (1). 
-  This mechanism can drive an increase of the fraction of Asians in districts with few Asians. 
-  (3) Once the fraction of Asians in a district exceeds the mean threshold, Asians in that district are more likely to not search anymore for other alternatives because the ethnicity fraction of their neighborhood contributed positively to their utility. 
-  Such a district becomes persistently more attractive for other Asians. 
+  This mechanism can drive an increase of the fraction of Asians in LSOAs with few Asians. 
+  (3) Once the fraction of Asians in a district exceeds the average threshold of 0.3, Asians in that district are more likely to not search anymore for other alternatives because the ethnicity fraction of their neighborhood contributed positively to their utility. 
+  Such a district becomes persistently more attractive for other unsatisfied Asians. 
   Asians themselves tend to not move out anymore, and a free spot tends to be taken by another Asian. 
   Also white British may have positive utility there but there are many more options for them, than for Asians. 
-  This mechanism drives the increase of the fraction of Asians in districts which already have a sizable fraction Asians. 
-  (4) Finally, if the fraction of Asians approaches 70% (one minus the average threshold) most white British are more likely to receive negative utility from the ethnic composition of the district and massively start to search better alternatives. 
+  This mechanism drives the increase of the fraction of Asians in LSOAs which already have a sizable fraction Asians. 
+  (4) Finally, if the fraction of Asians approaches 70% (one minus the average threshold) most white British are more likely to receive negative utility from the ethnic composition of the LSOA and massively start to search better alternatives. 
 This mechanisms drives the evolution towards an all-Asian district. 
 
 Note, that all arguments hold analog for white British and Blacks because they all have the same utility function with the same parameters. 
-They are explained for Asians because this explains best what happens in the simulation with the baseline parameter constellation. 
 
-In the following, we report some insights about what happens in the simulation if we deviate from our baseline parameter constellation. 
+In the following, we show more simulation output where starts with ethnic preferences alone and a homogeneous threshold. Then we introduce step by step heterogeneous thresholds, preferences for socioeconomic status, and tie-houses-to-SES. 
+
 For the discussion of the simulation output we need a bit of mathematical terminology about dynamical systems. 
 As every mathematically defined dynamical model, also our simulations tends to reach certain equilibrium states. 
 Our model has stochastic components, e.g., the random term of unobservable utility and the random selection of alternative places. 
-In stochastic models, equilibria are usually stochastic which means that random fluctuation persist in equilibrium while only distributions and their aggregate characteristics as residential patterns stabilize.^[Even in deterministic systems, an equilibrium state need not be static but can by a regular oscillation or even deterministic chaos. Both play no role in our model. Oscillations haven't been observed in the exploration and chaos would be blurred by stochastic fluctuations anyway.] 
+In stochastic models, equilibria are usually stochastic which means that random fluctuations persist in equilibrium while only distributions and their aggregate characteristics as residential patterns stabilize.<!---^[Even in deterministic systems, an equilibrium state need not be static but can by a regular oscillation or even deterministic chaos. Both play no role in our model. Oscillations haven't been observed in the exploration and chaos would be blurred by stochastic fluctuations anyway.]-->
 In our case, that means, a stochastic equilibrium may be reached where the fractions of ethnicities stay roughly constant although every time step agents are still moving. 
 
-> I think these two paragraphes can be skipped, the narration proceeds well without them, are technical for this journal and come a bit out of the blue ---
+
+<!--
 Therefore, any simulation should take the existence of equilibria into account. 
 The analysis has to face the following challenges: In a stochastic model it is not easy to assess if a stochastic equilibrium is reached. 
 Further on, multiple equilibria are typical for the same parameter constellation. Consequently, different equilibria may be reached from the same initial condition through random fluctuation. 
@@ -212,34 +208,29 @@ Thus, drastic qualitative change can sometimes be triggered by tiny changes in p
 Also related, convergence to equilibrium may take very long and meta-stable states may exist. 
 The latter are states which appear almost stable in a simulation for a long time but are prone to suddenly slip on a path of fast changes.^[Such fast changes may be triggered either because of rare random fluctuation or constant but very slow changes. Within the terminology of dynamical systems, the system crosses a border between basins of attraction of different (meta-stable) states.] 
 An example of a meta-stable state and a sudden drastic changes is shown in Figure ABM2. 
-<><><>
+--->
 
-The main focus of Figures ABM2 and ABM3 is to advance the theoretical understanding of the possible mechanism underlying segregation in Bradford as described so far through manipulation of parameters $\beta_{Eth}$ and $\beta_\text{SES}$ [@edmonds22squazzoni].
-First, ABM2 shows how the simulations evolves with different weights for similarity of ethnicity in the neighborhood ($\beta_{Eth}=4,8,12$) when preferences for similar socio-economic status are ignored ($\beta_\text{SES} = 0$). 
-Further on, simulations ran with heterogeneous thresholds ($\sigma_\theta=0.1$) as in the baseline constellation or a homogeneous threshold ($\sigma_\theta=0$). 
+<!-- The main focus of Figures ABM2 and ABM3 is to advance the theoretical understanding of the possible mechanisms underlying segregation in Bradford as described so far through manipulation of parameters $\beta_{Eth}$ and $\beta_\text{SES}$. -->
+Figure ABM2 shows simulation output with different weights for ethnic preferences ($\beta_{Eth}=4,8,12$) while socioeconomic preferences are absent ($\beta_\text{SES} = 0$). 
+Further on, simulations ran with a homogeneous threshold $\mu=0.3$ ($\sigma_\theta=0$) or heterogeneous thresholds ($\sigma_\theta=0.1$) as in the final constellation. 
 All simulations ran for 1,000 time steps. 
-The results show two qualitatively different outcomes: For high weights on ethnic similarity Asians gather and satisfice in several districts with 20% to 30% Asians. 
-For low weights and thus higher importance of the random component of unobservable utility, almost all Asians finally end up in 100% Asian districts. 
+The results show two qualitatively different outcomes: For high weights on ethnic similarity Asians gather and satisfice in several LSOAs with 20% to 30% Asians but no LSOAs with larger fractions of Asians emerge.
+For low weights and thus higher impact of unobservable utility, almost all Asians finally end up in 100% Asian districts. 
 This result may appear counter-intuitive because intuitively one may think that a higher weight for ethnic similarity would trigger more ethnic segregation. 
-The opposite is the case, because the random fluctuations help that mechanism (4) kicks in and some districts reach the threshold of Asians so that white British massively move out. 
-Here our results align with @van2009neighborhood[p.1174] comparing linear and threshold utility functions in Schelling's model where agents reiterate their decisions: for low levels of $\beta$, i.e. for higher randomness "first mistaken move leaves the target neighborhood equally undesirable to co-ethnics and equally desirable to out-group members currently there".
-In our simulation this creates a seed of all-Asian districts which makes neighboring districts attractive for Asians. 
-With higher $\beta_\text{Eth}$ the simulation does not produce those conditions that let mechanism (4) kick in. 
-Also the heterogeneity of thresholds seem to help in this regard. 
-A possible explanation is that compared to models like @van2009neighborhood, we include a two-step process. 
-As $\mu_\theta=0.3$ is relatively low, with some agents having even lower thresholds, Asians are more likely to satisfy their ethnic preferences.
-Thus, most of them would not look for other options. 
-Those who would relocate would be the small minority of Asians which holds higher thresholds, whose relocation to other districts whould not be so high to cause out-groups to leave. 
-Here, we find a similar result as in @xie2012modeling: given different thresholds within the same ethnic group, a proportion of agents with lower thresholds can decrease ethnic segregation, while increasing the attractiveness of neighborhood to those with slightly higher preferences.
-
+The opposite is the case. Without random fluctuations the mechanism (4) could not kick in and no LSOA reaches the threshold such that white British massively move out. 
+<!-- Here our results align with @van2009neighborhood[p.1174] comparing linear and threshold utility functions in Schelling's model where agents reiterate their decisions: for low levels of $\beta$, i.e. for higher randomness "first mistaken move leaves the target neighborhood equally undesirable to co-ethnics and equally desirable to out-group members currently there". -->
+Random fluctuation can create a seed for all-Asian districts which makes neighboring districts attractive for Asians. 
+Also the heterogeneity of thresholds seem to help in this regard, as visible in Figure ABM2. 
 For the intermediate weight of $\beta_{Eth}=8$ the evolution of all-Asian districts only happens under heterogeneous thresholds. 
-This case is also interesting as shown in an extra box in the Figure: After 300 time steps the situation looks as for homogeneous thresholds. 
-Only after about 800 time steps the dissimilarity of Asians starts to quickly increase and the whole town shifts to the fully segregated situation. 
+<!-- A possible explanation compared to @van2009neighborhood is the two-step process.   -->
+<!-- As $\mu_\theta=0.3$ is relatively low, with some agents having even lower thresholds, Asians are more likely to satisfy their ethnic preferences. -->
+<!-- Thus, most of them would not look for other options.  -->
+<!-- Those who would relocate would be the small minority of Asians which holds higher thresholds, whose relocation to other districts whould not be so high to cause out-groups to leave.  -->
+<!-- Here, we find a similar result as in @xie2012modeling: given different thresholds within the same ethnic group, a proportion of agents with lower thresholds can decrease ethnic segregation, while increasing the attractiveness of neighborhood to those with slightly higher preferences. -->
+The case with heterogeneous thresholds is also interesting as shown in the lower extra box in the Figure: After 300 time steps the situation looks as for homogeneous thresholds. 
+Only after about 800 time steps the dissimilarity of Asians starts to quickly increase and the whole town shifts to the fully segregated situation. Such sudden drastic changes are a common phenomenon in dynamical models. 
 Moreover, also the tiny Black population could form a cluster with one all-Black district in this simulation. 
-The parameters of this simulation, $\beta_{Eth}=8, \sigma_\theta=0.1$, are also those of the baseline constellation. 
-
-In Figure ABM3 we show the influence of the weights for similar socio-economic status in the neighborhood. 
-
+<!-- The parameters of this simulation, $\beta_{Eth}=8, \sigma_\theta=0.1$, are also those of the baseline constellation.  -->
 
 ```{r ABM2, fig.cap="Exploration of the preferences for ethnic similarity and threshold heterogenity focusing on the fraction of Asians including further details for one simulation at the bottom. "}
 "figs/figABM2.png" %>% 
@@ -247,43 +238,43 @@ In Figure ABM3 we show the influence of the weights for similar socio-economic s
   crop(right = 20, left = 20, bottom = 340, top = 0)
 ```
 
-While Figure ABM2 shows that an intermediate level of $\beta_\text{Eth}$ together with threshold heterogeneity enables the system's self-organization of all-Asian districts, this does not match the real situation because no ethnically diverse districts remain. 
-The simulations in Figure ABM3 show simulations for increasing weights for similarity in socio-economic status, $\beta_\text{SES}$. 
-Further on, it introduces that houses can be tied to the socio-economic status of residents. 
-The last main panel shows the baseline configuration with $\beta_\text{Eth}=8, \beta_\text{SES}=12$ and *tie-houses-to-SES* as in Figure figABM1. 
-It is notable that also equal weights for ethnic and socio-economic similarity $\beta_\text{Eth}=\beta_\text{SES}=8$ without tying houses to SES delivers results close to real-world data. 
-However, in this outcome segregation with respect to socio-economic status is much higher than in reality as shown in the panels with gray background at the bottom of Figure ABM3. 
+In Figure ABM3 we show the influence of preferences and housing restrictions with respect to socioeconomic status. While Figure ABM2 shows that an intermediate level of $\beta_\text{Eth}=8$ together with threshold heterogeneity $\sigma_\theta=0.1$ enables the emergence of all-Asian districts, this does not match the real situation because no ethnically diverse districts remain. 
+The simulations in Figure figABM3 show simulations for increasing weights for similarity in socioeconomic status, $\beta_\text{SES}$. 
+Further on, it introduces that houses can be tied to the socioeconomic status of residents. 
+The last main panel shows the final configuration with $\beta_\text{Eth}=8, \beta_\text{SES}=12$ and *tie-houses-to-SES* as in Figure figABM1. 
+It is notable that also equal weights for ethnic and socioeconomic similarity $\beta_\text{Eth}=\beta_\text{SES}=8$ without tying houses to SES delivers results close to real-world data. 
+However, in this outcome segregation with respect to socioeconomic status is much higher than in reality as shown in the panels with gray background at the bottom of Figure ABM3. 
 Tying houses to SES naturally restricts this deviation from real data because much more of Bradford's sociodemographic structure is forced to be preserved. 
-For equal weights for ethnic and socio-economic similarity, tying houses to SES, however, leads to over-segregation with respect to ethnicity. 
-Only when the weight for socio-economic similarity is above the weight for ethnic similarity, as in the baseline configuration, the simulation stabilizes with a spatial segregation structure similar to Bradford 2011. 
-Most likely, this happens because the majority of Asians is in LOW SES class (45.8%) and MID SES class (31.8%).
-When socio-economic utility outweights ethnic utility with $\beta_\text{Eth}=8, \beta_\text{SES}=12$, Asians care more about socio-economic similarity than ethnic similarity. In Bradford, they have more chance to find an agent of similar socio-economic status in the White ethnic group than in the own one (White represent the 72.4% of LOW SES and the 74.6% of MID SES).
-In short, to satisfy socio-economic similarity, they would accept to relocate to a less ethnically homogeneous neighborhood (with more White).
+Under equal weights for ethnic and socioeconomic similarity, tying houses to SES, however, leads to over-segregation with respect to ethnicity. 
+Only when the weight for socioeconomic similarity is above the weight for ethnic similarity, as in the final configuration, the simulation stabilizes with a spatial segregation structure similar to Bradford 2011.
+Most likely, diverse districts could persist when socioeconomic utility outweights ethnic utility because some Asians could satisfice on socioeconomic similarity.
+They accept less ethnically homogeneous neighborhoods.
 This result can be an alternative to models like  @fossett2006ethnic or @chen2005emergence, who consider other factors of utility as neighborhood quality and relocation costs.
-The result is that ethnic minorities with lower economic power cannot afford the price of high-quality neighborhoods, so to remain in ethnically mixed lower socio-economic neighborhoods.
-Our results show how similar scenarios might occur not as by-product of relocation costs, but due to the by-product of one similarity preference over another together with the distribution of such category in different ethnic groups.
+<!-- The result is that ethnic minorities with lower economic power cannot afford the price of high-quality neighborhoods, so to remain in ethnically mixed lower socioeconomic neighborhoods. -->
+Our results show how similar scenarios might occur not as by-product of relocation costs, but due to the by-product of one similarity preference over another. 
 
-
-```{r ABM3, fig.cap="Exploration of the preferences for socio-economic similarity and tying houses to socio-economic status focussing on the fraction of Asians including the baseline parameter constellation and further details about SES segregation for another simulation at the bottom."}
+```{r ABM3, fig.cap="Exploration of the preferences for socioeconomic similarity and tying houses to socioeconomic status focussing on the fraction of Asians including the baseline parameter constellation and further details about SES segregation for another simulation at the bottom."}
 "figs/figABM3.png" %>% 
 	image_read() %>%
   crop(right = 190, left = 0, bottom = 240, top = 0)
 ```
 
-The basic conclusions of this agent-based model is that mild preferences for ethnic similarity can trigger strong ethnic segregation in Bradford's population through the mechanisms (1)--(4). 
+## Conclusion
+
+The conclusion of the agent-based model analysis is that mild preferences for ethnic similarity can trigger strong ethnic segregation in Bradford's population through the mechanisms (1)--(4). 
 Even after an artificially forced de-segregation, strong segregation would slowly re-emerge under these behavioral assumptions through the natural movements of individuals. 
-As in Schelling's original model this phenomenon is a systemic effect. 
-Although almost all agents in the simulation would be satisfied with much less than 50% similars in their neighborhood, the emerging outcome makes Asians and white British live mostly in ethnically homogeneous neighborhoods. 
-This happens despite the fact that there are only 16.6% Asians in Bradford. 
+As in Schelling's original model this phenomenon is a systemic effect: 
+Almost all agents in the simulation would be satisfied with much less than 50% similars in their neighborhood. Thus, LSOAs could be much more ethnically diverse without leaving anyone not satisfied, but the emerging outcome makes many Asians and the vast majority of white British live mostly in ethnically homogeneous neighborhoods. 
+The strong concentration of Asians emerges despite the fact that there are only 16.6% Asians in Bradford. 
 We would like to stress here that we deliberately did not model the behavior of ethnic groups differently (except for the others). 
 So, in particular Asians and white British have identical utility functions and an identical distribution of thresholds. 
 Important for the phenomenon of full segregation is that, counter-intuitively, other unobservable aspects of individuals utility for places of residence are not fully dominated by the preferences for ethnic similarity. 
-An equilibrium close to real data without over-segregation is reached when preferences for socio-economic similarity are at least on par with preferences for ethnic similarity. The latter would also lead to segregation with respect to socio-economic status when this is not prevented by tying houses to SES. 
+An equilibrium close to real data without over-segregation is reached when preferences for socioeconomic similarity are at least on par with preferences for ethnic similarity. The latter would also lead to segregation with respect to socioeconomic status when this is not prevented by tying houses to SES. 
 
-Notes for further discussion: 
-  
-  - We presented the outcomes of an exploaratory study. So, the presented baseline parameter constellation is not the outcome of a systematic analysis. 
-  They maybe configuration which fit even better. 
+## Further notes perhaps for Online Material
+
+  - We presented the outcomes of an exploratory study. So, the presented final parameter constellation is not the outcome of a systematic analysis. 
+  There maybe configuration which fit even better. 
   - Why did we set *free-space*=0.05 and *neighbor-weight*=0.17? 
   What would happen? 
   Answer: We don't know exactly, but some explorations make us conjecture that there are at least no major phase transitions to be expected in the larger parameter regions around these values. 

@@ -987,7 +987,7 @@ beta-eth
 beta-eth
 0
 30
-0.0
+16.0
 0.1
 1
 NIL
@@ -1002,7 +1002,7 @@ beta-ses
 beta-ses
 0
 30
-4.0
+24.0
 0.1
 1
 NIL
@@ -1040,7 +1040,7 @@ INPUTBOX
 1749
 70
 stop-tick
-1260.0
+2540.0
 1
 0
 Number
@@ -1531,6 +1531,17 @@ NIL
 NIL
 NIL
 1
+
+MONITOR
+1389
+589
+1446
+634
+NIL
+ticks
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
