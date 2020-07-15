@@ -244,7 +244,7 @@ to print-town-data
   output-print (word " Avg local Simpson index: " precision (sum [totalpop * ethnic-simpson] of districts / sum [totalpop] of districts) 3)
   output-print (word " Town Simpson index: " precision town-ethnic-simpson 3)
   output-print (word " Excess avg local Simpson index: " precision (sum [totalpop * (ethnic-simpson - town-ethnic-simpson)] of districts / sum [totalpop] of districts) 3)
-  foreach range length ethnicities [x -> output-print (word " Dissimilarity " item x ethnicities ": " precision (sum [totalpop * dissimilarity x] of districts / sum [totalpop] of districts) 3)]
+  foreach range length ethnicities [x -> output-print (word " Dissimilarity " item x ethnicities ": " precision (sum [totalpop * dissimilarity x "all"] of districts / sum [totalpop] of districts) 3)]
 end
 
 ;; REPORTER FOR MONITORING
@@ -265,7 +265,7 @@ to-report value-for-monitoring [dist]
     (measure = "pop / max pop") [ [totalpop / maxpop] of dist ]
     (measure = "pop / mean pop") [ [totalpop ] of dist / town-totalpop * count districts ]
     (measure = "ethnicity fraction") [ [item (position (ethnicity) ethnicities) ethnicity-counts] of dist / [totalpop] of dist ]
-    (measure = "ethnicity dissimilarity") [ [dissimilarity (position (ethnicity) ethnicities)] of dist ]
+    (measure = "ethnicity dissimilarity") [ [dissimilarity (position (ethnicity) ethnicities) dissimilarity-ses] of dist ]
     (measure = "ethnicity location quotient") [ [location-quotient (position (ethnicity) ethnicities)] of dist ]
     (measure = "ethnicity-SES obs utility") [ [observable-utility (position (ethnicity) ethnicities) (position (ses) sess) threshold-mean ] of dist ]
     (measure = "ethnicity-SES fraction") [ [ item (position (ses) sess) (item (position (ethnicity) ethnicities) popdata) ] of dist / [totalpop] of dist ]
@@ -291,12 +291,18 @@ to-report average-ses report (sum (map [[ x y ] -> x * y] ses-counts range lengt
 to-report ethnicity-average-ses [ethn-ind] report ifelse-value (item ethn-ind ethnicity-counts > 0)
   [(sum (map [[ x y ] -> x * y] item ethn-ind popdata range length sess)) / item ethn-ind ethnicity-counts /  (length sess - 1)] ["NA"] end
 to-report average-ses-from-list [count-list] report (sum (map [[x y] -> x * y] count-list range length count-list)) / sum count-list / (length count-list - 1) end
-to-report dissimilarity [ethn-ind]
-  report abs (item ethn-ind ethnicity-counts / totalpop - item ethn-ind town-ethnicity-counts / town-totalpop) /
-         (2 * item ethn-ind town-ethnicity-counts / town-totalpop * (1 - item ethn-ind town-ethnicity-counts / town-totalpop))
+to-report dissimilarity [ethn-ind ses-str]
+  ifelse (ses-str = "all") [
+    report abs (item ethn-ind ethnicity-counts / totalpop - item ethn-ind town-ethnicity-counts / town-totalpop) /
+           (2 * item ethn-ind town-ethnicity-counts / town-totalpop * (1 - item ethn-ind town-ethnicity-counts / town-totalpop))
+  ][
+    let ses-ind position ses-str sess
+    report abs (item ses-ind item ethn-ind popdata / totalpop - item ses-ind item ethn-ind town-popdata / town-totalpop) /
+           (2 * item ses-ind item ethn-ind town-popdata / town-totalpop * (1 - item ses-ind item ethn-ind town-popdata / town-totalpop))
+  ]
 end
-to-report dissimilarity-string [ethn-ind] report (word (precision (sum [totalpop * dissimilarity ethn-ind] of districts / sum [totalpop] of districts) 3)
-  " (emp " (precision (sum [totalpop * dissimilarity ethn-ind] of staticempiricals / sum [totalpop] of staticempiricals) 3) ")") end
+to-report dissimilarity-string [ethn-ind ses-str] report (word (precision (sum [totalpop * dissimilarity ethn-ind ses-str] of districts / sum [totalpop] of districts) 3)
+  " (emp " (precision (sum [totalpop * dissimilarity ethn-ind ses-str] of staticempiricals / sum [totalpop] of staticempiricals) 3) ")") end
 to-report location-quotient [ethn-ind] report (item ethn-ind ethnicity-counts / item ethn-ind town-ethnicity-counts) / (totalpop / town-totalpop) end
 to-report location-quotient-ses [ethn-ind ses-ind] report (item ses-ind item ethn-ind popdata / item ses-ind item ethn-ind town-popdata) / (totalpop / town-totalpop) end
 to-report interaction [ethn-ind1 ethn-ind2]
@@ -884,45 +890,45 @@ TEXTBOX
 1
 
 MONITOR
-1318
+1359
 415
-1454
+1495
 460
 Dissimilarity ASIAN
-dissimilarity-string 1
+dissimilarity-string 1 dissimilarity-ses
 3
 1
 11
 
 MONITOR
-1318
+1359
 370
-1454
+1495
 415
 Dissimilarity WHITEB
-dissimilarity-string 0
+dissimilarity-string 0 dissimilarity-ses
 3
 1
 11
 
 MONITOR
-1318
+1359
 460
-1454
+1495
 505
 Dissimilarity BLACK
-dissimilarity-string 2
+dissimilarity-string 2 dissimilarity-ses
 3
 1
 11
 
 MONITOR
-1318
+1359
 505
-1454
+1495
 550
 Dissilarity OTHER
-dissimilarity-string 3
+dissimilarity-string 3 dissimilarity-ses
 3
 1
 11
@@ -943,10 +949,10 @@ true
 true
 "" ""
 PENS
-"WHITEB" 1.0 0 -1664597 true "" "plot sum [totalpop * dissimilarity 0] of districts / sum [totalpop] of districts"
-"ASIAN" 1.0 0 -3844592 true "" "plot sum [totalpop * dissimilarity 1] of districts / sum [totalpop] of districts"
-"BLACK" 1.0 0 -16777216 true "" "plot sum [totalpop * dissimilarity 2] of districts / sum [totalpop] of districts"
-"OTHER" 1.0 0 -14439633 true "" "plot sum [totalpop * dissimilarity 3] of districts / sum [totalpop] of districts"
+"WHITEB" 1.0 0 -1664597 true "" "plot sum [totalpop * dissimilarity 0 \"all\"] of districts / sum [totalpop] of districts"
+"ASIAN" 1.0 0 -3844592 true "" "plot sum [totalpop * dissimilarity 1  \"all\"] of districts / sum [totalpop] of districts"
+"BLACK" 1.0 0 -16777216 true "" "plot sum [totalpop * dissimilarity 2 \"all\"] of districts / sum [totalpop] of districts"
+"OTHER" 1.0 0 -14439633 true "" "plot sum [totalpop * dissimilarity 3 \"all\"] of districts / sum [totalpop] of districts"
 
 SLIDER
 650
@@ -987,7 +993,7 @@ beta-eth
 beta-eth
 0
 30
-16.0
+8.0
 0.1
 1
 NIL
@@ -1002,7 +1008,7 @@ beta-ses
 beta-ses
 0
 30
-24.0
+12.0
 0.1
 1
 NIL
@@ -1192,7 +1198,7 @@ Time trends\n
 PLOT
 1092
 549
-1361
+1349
 693
 Individual activities
 time
@@ -1209,9 +1215,9 @@ PENS
 "moving" 1.0 0 -955883 true "" "if ticks > 0 [plot moves-count / decisions-count]"
 
 MONITOR
-1289
+1277
 604
-1361
+1349
 649
 searching
 searches-count / decisions-count
@@ -1220,9 +1226,9 @@ searches-count / decisions-count
 11
 
 MONITOR
-1289
+1277
 648
-1361
+1349
 693
 moving
 moves-count / decisions-count
@@ -1532,16 +1538,15 @@ NIL
 NIL
 1
 
-MONITOR
-1389
-589
-1446
-634
-NIL
-ticks
-17
-1
-11
+CHOOSER
+1359
+550
+1495
+595
+dissimilarity-ses
+dissimilarity-ses
+"all" "LOW" "MID" "HIGH"
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
